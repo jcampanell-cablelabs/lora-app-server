@@ -34,7 +34,7 @@ func TestMQTTHandler(t *testing.T) {
 			time.Sleep(time.Millisecond * 100) // give the backend some time to connect
 
 			Convey("Given the MQTT client is subscribed to application/123/node/0102030405060708/rx", func() {
-				dataUpChan := make(chan handler.DataUpPayload)
+				dataUpChan := make(chan handler.DataUpPayload, 1)
 				token := c.Subscribe("application/123/node/0102030405060708/rx", 0, func(c mqtt.Client, msg mqtt.Message) {
 					var pl handler.DataUpPayload
 					if err := json.Unmarshal(msg.Payload(), &pl); err != nil {
@@ -74,7 +74,7 @@ func TestMQTTHandler(t *testing.T) {
 					pl := handler.JoinNotification{
 						ApplicationID:   123,
 						ApplicationName: "test-app",
-						NodeName:        "test-node",
+						DeviceName:      "test-node",
 						DevEUI:          lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
 						DevAddr:         [4]byte{1, 2, 3, 4},
 					}
@@ -103,7 +103,7 @@ func TestMQTTHandler(t *testing.T) {
 						ApplicationID:   123,
 						ApplicationName: "test-app",
 						DevEUI:          lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
-						NodeName:        "test-node",
+						DeviceName:      "test-node",
 						Reference:       "1234",
 					}
 					So(h.SendACKNotification(pl), ShouldBeNil)
@@ -130,7 +130,7 @@ func TestMQTTHandler(t *testing.T) {
 					pl := handler.ErrorNotification{
 						ApplicationID:   123,
 						ApplicationName: "test-app",
-						NodeName:        "test-node",
+						DeviceName:      "test-node",
 						DevEUI:          lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
 						Type:            "BOOM",
 						Error:           "boom boom boom",
@@ -164,6 +164,7 @@ func TestMQTTHandler(t *testing.T) {
 							Confirmed:     false,
 							FPort:         1,
 							Data:          []byte("hello"),
+							Object:        json.RawMessage("null"),
 						})
 					})
 				})

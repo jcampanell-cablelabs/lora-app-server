@@ -11,18 +11,14 @@ It has these top-level messages:
 	DataRate
 	RXInfo
 	TXInfo
-	JoinRequestRequest
-	JoinRequestResponse
-	HandleDataUpRequest
-	HandleProprietaryUpRequest
-	HandleProprietaryUpResponse
-	GetDataDownRequest
-	GetDataDownResponse
-	HandleDataUpResponse
-	HandleDataDownACKRequest
-	HandleDataDownACKResponse
+	HandleUplinkDataRequest
+	HandleProprietaryUplinkRequest
+	HandleProprietaryUplinkResponse
+	HandleUplinkDataResponse
 	HandleErrorRequest
 	HandleErrorResponse
+	HandleDownlinkACKRequest
+	HandleDownlinkACKResponse
 */
 package as
 
@@ -70,10 +66,12 @@ func (RXWindow) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int
 type ErrorType int32
 
 const (
-	ErrorType_Generic      ErrorType = 0
-	ErrorType_OTAA         ErrorType = 1
-	ErrorType_DATA_UP_FCNT ErrorType = 2
-	ErrorType_DATA_UP_MIC  ErrorType = 3
+	ErrorType_Generic                ErrorType = 0
+	ErrorType_OTAA                   ErrorType = 1
+	ErrorType_DATA_UP_FCNT           ErrorType = 2
+	ErrorType_DATA_UP_MIC            ErrorType = 3
+	ErrorType_DEVICE_QUEUE_ITEM_SIZE ErrorType = 4
+	ErrorType_DEVICE_QUEUE_ITEM_FCNT ErrorType = 5
 )
 
 var ErrorType_name = map[int32]string{
@@ -81,12 +79,16 @@ var ErrorType_name = map[int32]string{
 	1: "OTAA",
 	2: "DATA_UP_FCNT",
 	3: "DATA_UP_MIC",
+	4: "DEVICE_QUEUE_ITEM_SIZE",
+	5: "DEVICE_QUEUE_ITEM_FCNT",
 }
 var ErrorType_value = map[string]int32{
-	"Generic":      0,
-	"OTAA":         1,
-	"DATA_UP_FCNT": 2,
-	"DATA_UP_MIC":  3,
+	"Generic":                0,
+	"OTAA":                   1,
+	"DATA_UP_FCNT":           2,
+	"DATA_UP_MIC":            3,
+	"DEVICE_QUEUE_ITEM_SIZE": 4,
+	"DEVICE_QUEUE_ITEM_FCNT": 5,
 }
 
 func (x ErrorType) String() string {
@@ -246,206 +248,87 @@ func (m *TXInfo) GetCodeRate() string {
 	return ""
 }
 
-type JoinRequestRequest struct {
-	// PHYPayload of the join-request.
-	PhyPayload []byte `protobuf:"bytes,1,opt,name=phyPayload,proto3" json:"phyPayload,omitempty"`
-	// DevAddr assigned by the network-server.
-	DevAddr []byte `protobuf:"bytes,2,opt,name=devAddr,proto3" json:"devAddr,omitempty"`
-	// NetID assigned by the network-server.
-	NetID []byte `protobuf:"bytes,3,opt,name=netID,proto3" json:"netID,omitempty"`
-	// Custom channels to add to the join-accept response.
-	CFList []uint32 `protobuf:"varint,4,rep,packed,name=cFList" json:"cFList,omitempty"`
+type HandleUplinkDataRequest struct {
+	DevEUI              []byte    `protobuf:"bytes,1,opt,name=devEUI,proto3" json:"devEUI,omitempty"`
+	AppEUI              []byte    `protobuf:"bytes,2,opt,name=appEUI,proto3" json:"appEUI,omitempty"`
+	FCnt                uint32    `protobuf:"varint,3,opt,name=fCnt" json:"fCnt,omitempty"`
+	FPort               uint32    `protobuf:"varint,4,opt,name=fPort" json:"fPort,omitempty"`
+	Data                []byte    `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
+	TxInfo              *TXInfo   `protobuf:"bytes,6,opt,name=txInfo" json:"txInfo,omitempty"`
+	RxInfo              []*RXInfo `protobuf:"bytes,7,rep,name=rxInfo" json:"rxInfo,omitempty"`
+	DeviceStatusBattery uint32    `protobuf:"varint,9,opt,name=deviceStatusBattery" json:"deviceStatusBattery,omitempty"`
+	DeviceStatusMargin  int32     `protobuf:"varint,10,opt,name=deviceStatusMargin" json:"deviceStatusMargin,omitempty"`
 }
 
-func (m *JoinRequestRequest) Reset()                    { *m = JoinRequestRequest{} }
-func (m *JoinRequestRequest) String() string            { return proto.CompactTextString(m) }
-func (*JoinRequestRequest) ProtoMessage()               {}
-func (*JoinRequestRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+func (m *HandleUplinkDataRequest) Reset()                    { *m = HandleUplinkDataRequest{} }
+func (m *HandleUplinkDataRequest) String() string            { return proto.CompactTextString(m) }
+func (*HandleUplinkDataRequest) ProtoMessage()               {}
+func (*HandleUplinkDataRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
-func (m *JoinRequestRequest) GetPhyPayload() []byte {
-	if m != nil {
-		return m.PhyPayload
-	}
-	return nil
-}
-
-func (m *JoinRequestRequest) GetDevAddr() []byte {
-	if m != nil {
-		return m.DevAddr
-	}
-	return nil
-}
-
-func (m *JoinRequestRequest) GetNetID() []byte {
-	if m != nil {
-		return m.NetID
-	}
-	return nil
-}
-
-func (m *JoinRequestRequest) GetCFList() []uint32 {
-	if m != nil {
-		return m.CFList
-	}
-	return nil
-}
-
-type JoinRequestResponse struct {
-	// The encrypted PHYPayload containing the join-accept.
-	PhyPayload []byte `protobuf:"bytes,1,opt,name=phyPayload,proto3" json:"phyPayload,omitempty"`
-	// The network-session key (16 bytes).
-	NwkSKey []byte `protobuf:"bytes,2,opt,name=nwkSKey,proto3" json:"nwkSKey,omitempty"`
-	// the RX delay value (0 = 1 sec, 1 = 1 sec, 2 = 2 sec ...).
-	RxDelay uint32 `protobuf:"varint,3,opt,name=rxDelay" json:"rxDelay,omitempty"`
-	// The data-rate offset used for RX1 (see LoRaWAN specs for valid values).
-	Rx1DROffset uint32 `protobuf:"varint,4,opt,name=rx1DROffset" json:"rx1DROffset,omitempty"`
-	// The RX window to use for downlink transmissions.
-	RxWindow RXWindow `protobuf:"varint,6,opt,name=rxWindow,enum=as.RXWindow" json:"rxWindow,omitempty"`
-	// The data-rate to use for RX2 transmissions.
-	Rx2DR uint32 `protobuf:"varint,7,opt,name=rx2DR" json:"rx2DR,omitempty"`
-	// The data-rate to use for RX2 transmissions.
-	DisableFCntCheck bool `protobuf:"varint,8,opt,name=disableFCntCheck" json:"disableFCntCheck,omitempty"`
-	// The interval (based on frame-counter) on which to calculate the ideal
-	// data-rate and tx-power of the node and if needed, request an adaption.
-	AdrInterval uint32 `protobuf:"varint,9,opt,name=adrInterval" json:"adrInterval,omitempty"`
-	// The installation margin to take into account when calculating the ideal
-	// data-rate and tx-power. The default recommended value is 5dB.
-	InstallationMargin float64 `protobuf:"fixed64,10,opt,name=installationMargin" json:"installationMargin,omitempty"`
-}
-
-func (m *JoinRequestResponse) Reset()                    { *m = JoinRequestResponse{} }
-func (m *JoinRequestResponse) String() string            { return proto.CompactTextString(m) }
-func (*JoinRequestResponse) ProtoMessage()               {}
-func (*JoinRequestResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
-
-func (m *JoinRequestResponse) GetPhyPayload() []byte {
-	if m != nil {
-		return m.PhyPayload
-	}
-	return nil
-}
-
-func (m *JoinRequestResponse) GetNwkSKey() []byte {
-	if m != nil {
-		return m.NwkSKey
-	}
-	return nil
-}
-
-func (m *JoinRequestResponse) GetRxDelay() uint32 {
-	if m != nil {
-		return m.RxDelay
-	}
-	return 0
-}
-
-func (m *JoinRequestResponse) GetRx1DROffset() uint32 {
-	if m != nil {
-		return m.Rx1DROffset
-	}
-	return 0
-}
-
-func (m *JoinRequestResponse) GetRxWindow() RXWindow {
-	if m != nil {
-		return m.RxWindow
-	}
-	return RXWindow_RX1
-}
-
-func (m *JoinRequestResponse) GetRx2DR() uint32 {
-	if m != nil {
-		return m.Rx2DR
-	}
-	return 0
-}
-
-func (m *JoinRequestResponse) GetDisableFCntCheck() bool {
-	if m != nil {
-		return m.DisableFCntCheck
-	}
-	return false
-}
-
-func (m *JoinRequestResponse) GetAdrInterval() uint32 {
-	if m != nil {
-		return m.AdrInterval
-	}
-	return 0
-}
-
-func (m *JoinRequestResponse) GetInstallationMargin() float64 {
-	if m != nil {
-		return m.InstallationMargin
-	}
-	return 0
-}
-
-type HandleDataUpRequest struct {
-	DevEUI []byte    `protobuf:"bytes,1,opt,name=devEUI,proto3" json:"devEUI,omitempty"`
-	AppEUI []byte    `protobuf:"bytes,2,opt,name=appEUI,proto3" json:"appEUI,omitempty"`
-	FCnt   uint32    `protobuf:"varint,3,opt,name=fCnt" json:"fCnt,omitempty"`
-	FPort  uint32    `protobuf:"varint,4,opt,name=fPort" json:"fPort,omitempty"`
-	Data   []byte    `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
-	TxInfo *TXInfo   `protobuf:"bytes,6,opt,name=txInfo" json:"txInfo,omitempty"`
-	RxInfo []*RXInfo `protobuf:"bytes,7,rep,name=rxInfo" json:"rxInfo,omitempty"`
-}
-
-func (m *HandleDataUpRequest) Reset()                    { *m = HandleDataUpRequest{} }
-func (m *HandleDataUpRequest) String() string            { return proto.CompactTextString(m) }
-func (*HandleDataUpRequest) ProtoMessage()               {}
-func (*HandleDataUpRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
-
-func (m *HandleDataUpRequest) GetDevEUI() []byte {
+func (m *HandleUplinkDataRequest) GetDevEUI() []byte {
 	if m != nil {
 		return m.DevEUI
 	}
 	return nil
 }
 
-func (m *HandleDataUpRequest) GetAppEUI() []byte {
+func (m *HandleUplinkDataRequest) GetAppEUI() []byte {
 	if m != nil {
 		return m.AppEUI
 	}
 	return nil
 }
 
-func (m *HandleDataUpRequest) GetFCnt() uint32 {
+func (m *HandleUplinkDataRequest) GetFCnt() uint32 {
 	if m != nil {
 		return m.FCnt
 	}
 	return 0
 }
 
-func (m *HandleDataUpRequest) GetFPort() uint32 {
+func (m *HandleUplinkDataRequest) GetFPort() uint32 {
 	if m != nil {
 		return m.FPort
 	}
 	return 0
 }
 
-func (m *HandleDataUpRequest) GetData() []byte {
+func (m *HandleUplinkDataRequest) GetData() []byte {
 	if m != nil {
 		return m.Data
 	}
 	return nil
 }
 
-func (m *HandleDataUpRequest) GetTxInfo() *TXInfo {
+func (m *HandleUplinkDataRequest) GetTxInfo() *TXInfo {
 	if m != nil {
 		return m.TxInfo
 	}
 	return nil
 }
 
-func (m *HandleDataUpRequest) GetRxInfo() []*RXInfo {
+func (m *HandleUplinkDataRequest) GetRxInfo() []*RXInfo {
 	if m != nil {
 		return m.RxInfo
 	}
 	return nil
 }
 
-type HandleProprietaryUpRequest struct {
+func (m *HandleUplinkDataRequest) GetDeviceStatusBattery() uint32 {
+	if m != nil {
+		return m.DeviceStatusBattery
+	}
+	return 0
+}
+
+func (m *HandleUplinkDataRequest) GetDeviceStatusMargin() int32 {
+	if m != nil {
+		return m.DeviceStatusMargin
+	}
+	return 0
+}
+
+type HandleProprietaryUplinkRequest struct {
 	// MACPayload of the proprietary LoRaWAN frame.
 	MacPayload []byte `protobuf:"bytes,1,opt,name=macPayload,proto3" json:"macPayload,omitempty"`
 	// MIC of the proprietary LoRaWAN frame.
@@ -456,197 +339,74 @@ type HandleProprietaryUpRequest struct {
 	RxInfo []*RXInfo `protobuf:"bytes,4,rep,name=rxInfo" json:"rxInfo,omitempty"`
 }
 
-func (m *HandleProprietaryUpRequest) Reset()                    { *m = HandleProprietaryUpRequest{} }
-func (m *HandleProprietaryUpRequest) String() string            { return proto.CompactTextString(m) }
-func (*HandleProprietaryUpRequest) ProtoMessage()               {}
-func (*HandleProprietaryUpRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+func (m *HandleProprietaryUplinkRequest) Reset()                    { *m = HandleProprietaryUplinkRequest{} }
+func (m *HandleProprietaryUplinkRequest) String() string            { return proto.CompactTextString(m) }
+func (*HandleProprietaryUplinkRequest) ProtoMessage()               {}
+func (*HandleProprietaryUplinkRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
 
-func (m *HandleProprietaryUpRequest) GetMacPayload() []byte {
+func (m *HandleProprietaryUplinkRequest) GetMacPayload() []byte {
 	if m != nil {
 		return m.MacPayload
 	}
 	return nil
 }
 
-func (m *HandleProprietaryUpRequest) GetMic() []byte {
+func (m *HandleProprietaryUplinkRequest) GetMic() []byte {
 	if m != nil {
 		return m.Mic
 	}
 	return nil
 }
 
-func (m *HandleProprietaryUpRequest) GetTxInfo() *TXInfo {
+func (m *HandleProprietaryUplinkRequest) GetTxInfo() *TXInfo {
 	if m != nil {
 		return m.TxInfo
 	}
 	return nil
 }
 
-func (m *HandleProprietaryUpRequest) GetRxInfo() []*RXInfo {
+func (m *HandleProprietaryUplinkRequest) GetRxInfo() []*RXInfo {
 	if m != nil {
 		return m.RxInfo
 	}
 	return nil
 }
 
-type HandleProprietaryUpResponse struct {
+type HandleProprietaryUplinkResponse struct {
 }
 
-func (m *HandleProprietaryUpResponse) Reset()                    { *m = HandleProprietaryUpResponse{} }
-func (m *HandleProprietaryUpResponse) String() string            { return proto.CompactTextString(m) }
-func (*HandleProprietaryUpResponse) ProtoMessage()               {}
-func (*HandleProprietaryUpResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+func (m *HandleProprietaryUplinkResponse) Reset()                    { *m = HandleProprietaryUplinkResponse{} }
+func (m *HandleProprietaryUplinkResponse) String() string            { return proto.CompactTextString(m) }
+func (*HandleProprietaryUplinkResponse) ProtoMessage()               {}
+func (*HandleProprietaryUplinkResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
 
-type GetDataDownRequest struct {
-	DevEUI         []byte `protobuf:"bytes,1,opt,name=devEUI,proto3" json:"devEUI,omitempty"`
-	AppEUI         []byte `protobuf:"bytes,2,opt,name=appEUI,proto3" json:"appEUI,omitempty"`
-	MaxPayloadSize uint32 `protobuf:"varint,3,opt,name=maxPayloadSize" json:"maxPayloadSize,omitempty"`
-	FCnt           uint32 `protobuf:"varint,4,opt,name=fCnt" json:"fCnt,omitempty"`
+type HandleUplinkDataResponse struct {
 }
 
-func (m *GetDataDownRequest) Reset()                    { *m = GetDataDownRequest{} }
-func (m *GetDataDownRequest) String() string            { return proto.CompactTextString(m) }
-func (*GetDataDownRequest) ProtoMessage()               {}
-func (*GetDataDownRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
-
-func (m *GetDataDownRequest) GetDevEUI() []byte {
-	if m != nil {
-		return m.DevEUI
-	}
-	return nil
-}
-
-func (m *GetDataDownRequest) GetAppEUI() []byte {
-	if m != nil {
-		return m.AppEUI
-	}
-	return nil
-}
-
-func (m *GetDataDownRequest) GetMaxPayloadSize() uint32 {
-	if m != nil {
-		return m.MaxPayloadSize
-	}
-	return 0
-}
-
-func (m *GetDataDownRequest) GetFCnt() uint32 {
-	if m != nil {
-		return m.FCnt
-	}
-	return 0
-}
-
-type GetDataDownResponse struct {
-	Data      []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
-	Confirmed bool   `protobuf:"varint,2,opt,name=confirmed" json:"confirmed,omitempty"`
-	FPort     uint32 `protobuf:"varint,3,opt,name=fPort" json:"fPort,omitempty"`
-	MoreData  bool   `protobuf:"varint,4,opt,name=moreData" json:"moreData,omitempty"`
-}
-
-func (m *GetDataDownResponse) Reset()                    { *m = GetDataDownResponse{} }
-func (m *GetDataDownResponse) String() string            { return proto.CompactTextString(m) }
-func (*GetDataDownResponse) ProtoMessage()               {}
-func (*GetDataDownResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
-
-func (m *GetDataDownResponse) GetData() []byte {
-	if m != nil {
-		return m.Data
-	}
-	return nil
-}
-
-func (m *GetDataDownResponse) GetConfirmed() bool {
-	if m != nil {
-		return m.Confirmed
-	}
-	return false
-}
-
-func (m *GetDataDownResponse) GetFPort() uint32 {
-	if m != nil {
-		return m.FPort
-	}
-	return 0
-}
-
-func (m *GetDataDownResponse) GetMoreData() bool {
-	if m != nil {
-		return m.MoreData
-	}
-	return false
-}
-
-type HandleDataUpResponse struct {
-}
-
-func (m *HandleDataUpResponse) Reset()                    { *m = HandleDataUpResponse{} }
-func (m *HandleDataUpResponse) String() string            { return proto.CompactTextString(m) }
-func (*HandleDataUpResponse) ProtoMessage()               {}
-func (*HandleDataUpResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
-
-type HandleDataDownACKRequest struct {
-	DevEUI []byte `protobuf:"bytes,1,opt,name=devEUI,proto3" json:"devEUI,omitempty"`
-	AppEUI []byte `protobuf:"bytes,2,opt,name=appEUI,proto3" json:"appEUI,omitempty"`
-	FCnt   uint32 `protobuf:"varint,3,opt,name=fCnt" json:"fCnt,omitempty"`
-}
-
-func (m *HandleDataDownACKRequest) Reset()                    { *m = HandleDataDownACKRequest{} }
-func (m *HandleDataDownACKRequest) String() string            { return proto.CompactTextString(m) }
-func (*HandleDataDownACKRequest) ProtoMessage()               {}
-func (*HandleDataDownACKRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
-
-func (m *HandleDataDownACKRequest) GetDevEUI() []byte {
-	if m != nil {
-		return m.DevEUI
-	}
-	return nil
-}
-
-func (m *HandleDataDownACKRequest) GetAppEUI() []byte {
-	if m != nil {
-		return m.AppEUI
-	}
-	return nil
-}
-
-func (m *HandleDataDownACKRequest) GetFCnt() uint32 {
-	if m != nil {
-		return m.FCnt
-	}
-	return 0
-}
-
-type HandleDataDownACKResponse struct {
-}
-
-func (m *HandleDataDownACKResponse) Reset()                    { *m = HandleDataDownACKResponse{} }
-func (m *HandleDataDownACKResponse) String() string            { return proto.CompactTextString(m) }
-func (*HandleDataDownACKResponse) ProtoMessage()               {}
-func (*HandleDataDownACKResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
+func (m *HandleUplinkDataResponse) Reset()                    { *m = HandleUplinkDataResponse{} }
+func (m *HandleUplinkDataResponse) String() string            { return proto.CompactTextString(m) }
+func (*HandleUplinkDataResponse) ProtoMessage()               {}
+func (*HandleUplinkDataResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
 
 type HandleErrorRequest struct {
-	DevEUI []byte    `protobuf:"bytes,1,opt,name=devEUI,proto3" json:"devEUI,omitempty"`
-	AppEUI []byte    `protobuf:"bytes,2,opt,name=appEUI,proto3" json:"appEUI,omitempty"`
-	Type   ErrorType `protobuf:"varint,3,opt,name=type,enum=as.ErrorType" json:"type,omitempty"`
-	Error  string    `protobuf:"bytes,4,opt,name=error" json:"error,omitempty"`
+	// DevEUI of the device.
+	DevEUI []byte `protobuf:"bytes,1,opt,name=devEUI,proto3" json:"devEUI,omitempty"`
+	// Type of the error.
+	Type ErrorType `protobuf:"varint,3,opt,name=type,enum=as.ErrorType" json:"type,omitempty"`
+	// Error string describing the error.
+	Error string `protobuf:"bytes,4,opt,name=error" json:"error,omitempty"`
+	// Frame-counter (if applicable) related to the error.
+	FCnt uint32 `protobuf:"varint,5,opt,name=fCnt" json:"fCnt,omitempty"`
 }
 
 func (m *HandleErrorRequest) Reset()                    { *m = HandleErrorRequest{} }
 func (m *HandleErrorRequest) String() string            { return proto.CompactTextString(m) }
 func (*HandleErrorRequest) ProtoMessage()               {}
-func (*HandleErrorRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
+func (*HandleErrorRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
 
 func (m *HandleErrorRequest) GetDevEUI() []byte {
 	if m != nil {
 		return m.DevEUI
-	}
-	return nil
-}
-
-func (m *HandleErrorRequest) GetAppEUI() []byte {
-	if m != nil {
-		return m.AppEUI
 	}
 	return nil
 }
@@ -665,30 +425,76 @@ func (m *HandleErrorRequest) GetError() string {
 	return ""
 }
 
+func (m *HandleErrorRequest) GetFCnt() uint32 {
+	if m != nil {
+		return m.FCnt
+	}
+	return 0
+}
+
 type HandleErrorResponse struct {
 }
 
 func (m *HandleErrorResponse) Reset()                    { *m = HandleErrorResponse{} }
 func (m *HandleErrorResponse) String() string            { return proto.CompactTextString(m) }
 func (*HandleErrorResponse) ProtoMessage()               {}
-func (*HandleErrorResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
+func (*HandleErrorResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+
+type HandleDownlinkACKRequest struct {
+	// DevEUI of the device.
+	DevEUI []byte `protobuf:"bytes,1,opt,name=devEUI,proto3" json:"devEUI,omitempty"`
+	// Downlink frame-counter.
+	FCnt uint32 `protobuf:"varint,2,opt,name=fCnt" json:"fCnt,omitempty"`
+	// Frame was acknowledged?
+	Acknowledged bool `protobuf:"varint,3,opt,name=acknowledged" json:"acknowledged,omitempty"`
+}
+
+func (m *HandleDownlinkACKRequest) Reset()                    { *m = HandleDownlinkACKRequest{} }
+func (m *HandleDownlinkACKRequest) String() string            { return proto.CompactTextString(m) }
+func (*HandleDownlinkACKRequest) ProtoMessage()               {}
+func (*HandleDownlinkACKRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
+
+func (m *HandleDownlinkACKRequest) GetDevEUI() []byte {
+	if m != nil {
+		return m.DevEUI
+	}
+	return nil
+}
+
+func (m *HandleDownlinkACKRequest) GetFCnt() uint32 {
+	if m != nil {
+		return m.FCnt
+	}
+	return 0
+}
+
+func (m *HandleDownlinkACKRequest) GetAcknowledged() bool {
+	if m != nil {
+		return m.Acknowledged
+	}
+	return false
+}
+
+type HandleDownlinkACKResponse struct {
+}
+
+func (m *HandleDownlinkACKResponse) Reset()                    { *m = HandleDownlinkACKResponse{} }
+func (m *HandleDownlinkACKResponse) String() string            { return proto.CompactTextString(m) }
+func (*HandleDownlinkACKResponse) ProtoMessage()               {}
+func (*HandleDownlinkACKResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
 
 func init() {
 	proto.RegisterType((*DataRate)(nil), "as.DataRate")
 	proto.RegisterType((*RXInfo)(nil), "as.RXInfo")
 	proto.RegisterType((*TXInfo)(nil), "as.TXInfo")
-	proto.RegisterType((*JoinRequestRequest)(nil), "as.JoinRequestRequest")
-	proto.RegisterType((*JoinRequestResponse)(nil), "as.JoinRequestResponse")
-	proto.RegisterType((*HandleDataUpRequest)(nil), "as.HandleDataUpRequest")
-	proto.RegisterType((*HandleProprietaryUpRequest)(nil), "as.HandleProprietaryUpRequest")
-	proto.RegisterType((*HandleProprietaryUpResponse)(nil), "as.HandleProprietaryUpResponse")
-	proto.RegisterType((*GetDataDownRequest)(nil), "as.GetDataDownRequest")
-	proto.RegisterType((*GetDataDownResponse)(nil), "as.GetDataDownResponse")
-	proto.RegisterType((*HandleDataUpResponse)(nil), "as.HandleDataUpResponse")
-	proto.RegisterType((*HandleDataDownACKRequest)(nil), "as.HandleDataDownACKRequest")
-	proto.RegisterType((*HandleDataDownACKResponse)(nil), "as.HandleDataDownACKResponse")
+	proto.RegisterType((*HandleUplinkDataRequest)(nil), "as.HandleUplinkDataRequest")
+	proto.RegisterType((*HandleProprietaryUplinkRequest)(nil), "as.HandleProprietaryUplinkRequest")
+	proto.RegisterType((*HandleProprietaryUplinkResponse)(nil), "as.HandleProprietaryUplinkResponse")
+	proto.RegisterType((*HandleUplinkDataResponse)(nil), "as.HandleUplinkDataResponse")
 	proto.RegisterType((*HandleErrorRequest)(nil), "as.HandleErrorRequest")
 	proto.RegisterType((*HandleErrorResponse)(nil), "as.HandleErrorResponse")
+	proto.RegisterType((*HandleDownlinkACKRequest)(nil), "as.HandleDownlinkACKRequest")
+	proto.RegisterType((*HandleDownlinkACKResponse)(nil), "as.HandleDownlinkACKResponse")
 	proto.RegisterEnum("as.RXWindow", RXWindow_name, RXWindow_value)
 	proto.RegisterEnum("as.ErrorType", ErrorType_name, ErrorType_value)
 }
@@ -704,18 +510,14 @@ const _ = grpc.SupportPackageIsVersion4
 // Client API for ApplicationServer service
 
 type ApplicationServerClient interface {
-	// JoinRequest requests the application server to validate the join-request and return an encrypted join-accept.
-	JoinRequest(ctx context.Context, in *JoinRequestRequest, opts ...grpc.CallOption) (*JoinRequestResponse, error)
-	// HandleDataUp publishes data received from an end-device.
-	HandleDataUp(ctx context.Context, in *HandleDataUpRequest, opts ...grpc.CallOption) (*HandleDataUpResponse, error)
-	// HandleProprietaryUp handles proprietary uplink payloads.
-	HandleProprietaryUp(ctx context.Context, in *HandleProprietaryUpRequest, opts ...grpc.CallOption) (*HandleProprietaryUpResponse, error)
-	// GetDataDown gets data from the downlink queue.
-	GetDataDown(ctx context.Context, in *GetDataDownRequest, opts ...grpc.CallOption) (*GetDataDownResponse, error)
-	// HandleDataDownACK publishes a data-down ack response.
-	HandleDataDownACK(ctx context.Context, in *HandleDataDownACKRequest, opts ...grpc.CallOption) (*HandleDataDownACKResponse, error)
+	// HandleUplinkData publishes data received from an end-device.
+	HandleUplinkData(ctx context.Context, in *HandleUplinkDataRequest, opts ...grpc.CallOption) (*HandleUplinkDataResponse, error)
+	// HandleProprietaryUplink handles proprietary uplink payloads.
+	HandleProprietaryUplink(ctx context.Context, in *HandleProprietaryUplinkRequest, opts ...grpc.CallOption) (*HandleProprietaryUplinkResponse, error)
 	// HandleError publishes an error message.
 	HandleError(ctx context.Context, in *HandleErrorRequest, opts ...grpc.CallOption) (*HandleErrorResponse, error)
+	// HandleDownlinkACK sends a downlink ACK or nACK response.
+	HandleDownlinkACK(ctx context.Context, in *HandleDownlinkACKRequest, opts ...grpc.CallOption) (*HandleDownlinkACKResponse, error)
 }
 
 type applicationServerClient struct {
@@ -726,45 +528,18 @@ func NewApplicationServerClient(cc *grpc.ClientConn) ApplicationServerClient {
 	return &applicationServerClient{cc}
 }
 
-func (c *applicationServerClient) JoinRequest(ctx context.Context, in *JoinRequestRequest, opts ...grpc.CallOption) (*JoinRequestResponse, error) {
-	out := new(JoinRequestResponse)
-	err := grpc.Invoke(ctx, "/as.ApplicationServer/JoinRequest", in, out, c.cc, opts...)
+func (c *applicationServerClient) HandleUplinkData(ctx context.Context, in *HandleUplinkDataRequest, opts ...grpc.CallOption) (*HandleUplinkDataResponse, error) {
+	out := new(HandleUplinkDataResponse)
+	err := grpc.Invoke(ctx, "/as.ApplicationServer/HandleUplinkData", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *applicationServerClient) HandleDataUp(ctx context.Context, in *HandleDataUpRequest, opts ...grpc.CallOption) (*HandleDataUpResponse, error) {
-	out := new(HandleDataUpResponse)
-	err := grpc.Invoke(ctx, "/as.ApplicationServer/HandleDataUp", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *applicationServerClient) HandleProprietaryUp(ctx context.Context, in *HandleProprietaryUpRequest, opts ...grpc.CallOption) (*HandleProprietaryUpResponse, error) {
-	out := new(HandleProprietaryUpResponse)
-	err := grpc.Invoke(ctx, "/as.ApplicationServer/HandleProprietaryUp", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *applicationServerClient) GetDataDown(ctx context.Context, in *GetDataDownRequest, opts ...grpc.CallOption) (*GetDataDownResponse, error) {
-	out := new(GetDataDownResponse)
-	err := grpc.Invoke(ctx, "/as.ApplicationServer/GetDataDown", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *applicationServerClient) HandleDataDownACK(ctx context.Context, in *HandleDataDownACKRequest, opts ...grpc.CallOption) (*HandleDataDownACKResponse, error) {
-	out := new(HandleDataDownACKResponse)
-	err := grpc.Invoke(ctx, "/as.ApplicationServer/HandleDataDownACK", in, out, c.cc, opts...)
+func (c *applicationServerClient) HandleProprietaryUplink(ctx context.Context, in *HandleProprietaryUplinkRequest, opts ...grpc.CallOption) (*HandleProprietaryUplinkResponse, error) {
+	out := new(HandleProprietaryUplinkResponse)
+	err := grpc.Invoke(ctx, "/as.ApplicationServer/HandleProprietaryUplink", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -780,113 +555,64 @@ func (c *applicationServerClient) HandleError(ctx context.Context, in *HandleErr
 	return out, nil
 }
 
+func (c *applicationServerClient) HandleDownlinkACK(ctx context.Context, in *HandleDownlinkACKRequest, opts ...grpc.CallOption) (*HandleDownlinkACKResponse, error) {
+	out := new(HandleDownlinkACKResponse)
+	err := grpc.Invoke(ctx, "/as.ApplicationServer/HandleDownlinkACK", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for ApplicationServer service
 
 type ApplicationServerServer interface {
-	// JoinRequest requests the application server to validate the join-request and return an encrypted join-accept.
-	JoinRequest(context.Context, *JoinRequestRequest) (*JoinRequestResponse, error)
-	// HandleDataUp publishes data received from an end-device.
-	HandleDataUp(context.Context, *HandleDataUpRequest) (*HandleDataUpResponse, error)
-	// HandleProprietaryUp handles proprietary uplink payloads.
-	HandleProprietaryUp(context.Context, *HandleProprietaryUpRequest) (*HandleProprietaryUpResponse, error)
-	// GetDataDown gets data from the downlink queue.
-	GetDataDown(context.Context, *GetDataDownRequest) (*GetDataDownResponse, error)
-	// HandleDataDownACK publishes a data-down ack response.
-	HandleDataDownACK(context.Context, *HandleDataDownACKRequest) (*HandleDataDownACKResponse, error)
+	// HandleUplinkData publishes data received from an end-device.
+	HandleUplinkData(context.Context, *HandleUplinkDataRequest) (*HandleUplinkDataResponse, error)
+	// HandleProprietaryUplink handles proprietary uplink payloads.
+	HandleProprietaryUplink(context.Context, *HandleProprietaryUplinkRequest) (*HandleProprietaryUplinkResponse, error)
 	// HandleError publishes an error message.
 	HandleError(context.Context, *HandleErrorRequest) (*HandleErrorResponse, error)
+	// HandleDownlinkACK sends a downlink ACK or nACK response.
+	HandleDownlinkACK(context.Context, *HandleDownlinkACKRequest) (*HandleDownlinkACKResponse, error)
 }
 
 func RegisterApplicationServerServer(s *grpc.Server, srv ApplicationServerServer) {
 	s.RegisterService(&_ApplicationServer_serviceDesc, srv)
 }
 
-func _ApplicationServer_JoinRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(JoinRequestRequest)
+func _ApplicationServer_HandleUplinkData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HandleUplinkDataRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ApplicationServerServer).JoinRequest(ctx, in)
+		return srv.(ApplicationServerServer).HandleUplinkData(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/as.ApplicationServer/JoinRequest",
+		FullMethod: "/as.ApplicationServer/HandleUplinkData",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ApplicationServerServer).JoinRequest(ctx, req.(*JoinRequestRequest))
+		return srv.(ApplicationServerServer).HandleUplinkData(ctx, req.(*HandleUplinkDataRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ApplicationServer_HandleDataUp_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HandleDataUpRequest)
+func _ApplicationServer_HandleProprietaryUplink_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HandleProprietaryUplinkRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ApplicationServerServer).HandleDataUp(ctx, in)
+		return srv.(ApplicationServerServer).HandleProprietaryUplink(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/as.ApplicationServer/HandleDataUp",
+		FullMethod: "/as.ApplicationServer/HandleProprietaryUplink",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ApplicationServerServer).HandleDataUp(ctx, req.(*HandleDataUpRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ApplicationServer_HandleProprietaryUp_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HandleProprietaryUpRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ApplicationServerServer).HandleProprietaryUp(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/as.ApplicationServer/HandleProprietaryUp",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ApplicationServerServer).HandleProprietaryUp(ctx, req.(*HandleProprietaryUpRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ApplicationServer_GetDataDown_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetDataDownRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ApplicationServerServer).GetDataDown(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/as.ApplicationServer/GetDataDown",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ApplicationServerServer).GetDataDown(ctx, req.(*GetDataDownRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ApplicationServer_HandleDataDownACK_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HandleDataDownACKRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ApplicationServerServer).HandleDataDownACK(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/as.ApplicationServer/HandleDataDownACK",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ApplicationServerServer).HandleDataDownACK(ctx, req.(*HandleDataDownACKRequest))
+		return srv.(ApplicationServerServer).HandleProprietaryUplink(ctx, req.(*HandleProprietaryUplinkRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -909,33 +635,43 @@ func _ApplicationServer_HandleError_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ApplicationServer_HandleDownlinkACK_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HandleDownlinkACKRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServerServer).HandleDownlinkACK(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/as.ApplicationServer/HandleDownlinkACK",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServerServer).HandleDownlinkACK(ctx, req.(*HandleDownlinkACKRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _ApplicationServer_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "as.ApplicationServer",
 	HandlerType: (*ApplicationServerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "JoinRequest",
-			Handler:    _ApplicationServer_JoinRequest_Handler,
+			MethodName: "HandleUplinkData",
+			Handler:    _ApplicationServer_HandleUplinkData_Handler,
 		},
 		{
-			MethodName: "HandleDataUp",
-			Handler:    _ApplicationServer_HandleDataUp_Handler,
-		},
-		{
-			MethodName: "HandleProprietaryUp",
-			Handler:    _ApplicationServer_HandleProprietaryUp_Handler,
-		},
-		{
-			MethodName: "GetDataDown",
-			Handler:    _ApplicationServer_GetDataDown_Handler,
-		},
-		{
-			MethodName: "HandleDataDownACK",
-			Handler:    _ApplicationServer_HandleDataDownACK_Handler,
+			MethodName: "HandleProprietaryUplink",
+			Handler:    _ApplicationServer_HandleProprietaryUplink_Handler,
 		},
 		{
 			MethodName: "HandleError",
 			Handler:    _ApplicationServer_HandleError_Handler,
+		},
+		{
+			MethodName: "HandleDownlinkACK",
+			Handler:    _ApplicationServer_HandleDownlinkACK_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -945,68 +681,56 @@ var _ApplicationServer_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("as.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 999 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0xdb, 0x6e, 0xdb, 0x46,
-	0x13, 0x36, 0x4d, 0x59, 0xa2, 0x46, 0xb2, 0x7f, 0x65, 0x9d, 0xdf, 0x61, 0x15, 0x25, 0x55, 0x79,
-	0x51, 0x18, 0xbe, 0x30, 0x10, 0xf5, 0x05, 0x22, 0x48, 0x76, 0xaa, 0xa6, 0x49, 0x8c, 0xb5, 0x8c,
-	0xf8, 0xaa, 0xc1, 0x9a, 0x5c, 0xc5, 0x44, 0xa8, 0x5d, 0x76, 0xb9, 0xb6, 0xa5, 0xa2, 0x2d, 0x7a,
-	0xd5, 0x47, 0xe8, 0x23, 0x15, 0x28, 0xda, 0x87, 0x2a, 0xf6, 0xc0, 0x83, 0x22, 0x19, 0x08, 0x82,
-	0x5e, 0x79, 0xe7, 0x9b, 0xe5, 0x1c, 0xbe, 0xf9, 0x66, 0x2d, 0xf0, 0x48, 0x76, 0x9c, 0x0a, 0x2e,
-	0x39, 0xda, 0x26, 0x59, 0xf0, 0xbb, 0x03, 0xde, 0x98, 0x48, 0x82, 0x89, 0xa4, 0xe8, 0x29, 0xc0,
-	0x9c, 0x47, 0x37, 0x09, 0x91, 0x31, 0x67, 0xbe, 0xd3, 0x77, 0x0e, 0x9b, 0xb8, 0x82, 0xa0, 0x1e,
-	0x34, 0xaf, 0x08, 0x8b, 0xde, 0xc6, 0x91, 0xbc, 0xf6, 0xb7, 0xfb, 0xce, 0xe1, 0x2e, 0x2e, 0x01,
-	0x14, 0x40, 0x3b, 0x4b, 0x05, 0x25, 0xd1, 0x29, 0x09, 0x25, 0x17, 0xbe, 0xab, 0x2f, 0xac, 0x60,
-	0xc8, 0x87, 0xc6, 0x55, 0x2c, 0x05, 0x91, 0xd4, 0xaf, 0x69, 0x77, 0x6e, 0x06, 0x7f, 0x3a, 0x50,
-	0xc7, 0x97, 0x13, 0x36, 0xe3, 0xa8, 0x03, 0xee, 0x9c, 0x84, 0x3a, 0x7f, 0x1b, 0xab, 0x23, 0x42,
-	0x50, 0x93, 0xf1, 0x9c, 0xea, 0x9c, 0x4d, 0xac, 0xcf, 0x0a, 0x13, 0x59, 0x16, 0xeb, 0x34, 0x3b,
-	0x58, 0x9f, 0x55, 0xf8, 0x84, 0x63, 0x72, 0xfe, 0x1a, 0xeb, 0xf0, 0x0e, 0xce, 0x4d, 0x75, 0x9b,
-	0x91, 0x39, 0xf5, 0x77, 0x4c, 0x04, 0x75, 0x46, 0x5d, 0xf0, 0x54, 0x63, 0xf2, 0x26, 0xa2, 0x7e,
-	0x5d, 0x5f, 0x2f, 0x6c, 0xd5, 0x6a, 0xc2, 0xd9, 0x7b, 0xe3, 0x6c, 0x68, 0x67, 0x09, 0xa8, 0x2f,
-	0x49, 0x62, 0xbf, 0xf4, 0xcc, 0x97, 0xb9, 0x1d, 0xfc, 0x0a, 0xf5, 0xa9, 0xe9, 0xa3, 0x07, 0xcd,
-	0x99, 0xa0, 0x3f, 0xde, 0x50, 0x16, 0x2e, 0x75, 0x37, 0x2e, 0x2e, 0x01, 0x74, 0x08, 0x5e, 0x64,
-	0x89, 0xd7, 0x7d, 0xb5, 0x06, 0xed, 0x63, 0x92, 0x1d, 0xe7, 0xc3, 0xc0, 0x85, 0x57, 0xf1, 0x41,
-	0x22, 0xc3, 0xa7, 0x87, 0xd5, 0x51, 0xe5, 0x0f, 0x79, 0x44, 0x71, 0xce, 0x63, 0x13, 0x17, 0x76,
-	0xf0, 0x33, 0xa0, 0xef, 0x78, 0xcc, 0xb0, 0xca, 0x93, 0x49, 0xfb, 0x47, 0x8d, 0x36, 0xbd, 0x5e,
-	0x9e, 0x91, 0x65, 0xc2, 0x49, 0x64, 0xa9, 0xad, 0x20, 0x8a, 0xb9, 0x88, 0xde, 0x0e, 0xa3, 0x48,
-	0xe8, 0x62, 0xda, 0x38, 0x37, 0xd1, 0x43, 0xd8, 0x61, 0x54, 0x4e, 0xc6, 0x3a, 0x7f, 0x1b, 0x1b,
-	0x03, 0x1d, 0x40, 0x3d, 0x3c, 0xfd, 0x3e, 0xce, 0xa4, 0x5f, 0xeb, 0xbb, 0x87, 0xbb, 0xd8, 0x5a,
-	0xc1, 0x5f, 0xdb, 0xb0, 0xbf, 0x92, 0x3e, 0x4b, 0x39, 0xcb, 0xe8, 0xa7, 0xe4, 0x67, 0x77, 0x1f,
-	0xce, 0x5f, 0xd2, 0x65, 0x9e, 0xdf, 0x9a, 0xca, 0x23, 0x16, 0x63, 0x9a, 0x90, 0xa5, 0x55, 0x54,
-	0x6e, 0xa2, 0x3e, 0xb4, 0xc4, 0xe2, 0xd9, 0x18, 0xbf, 0x99, 0xcd, 0x32, 0x2a, 0xad, 0xa0, 0xaa,
-	0x90, 0xe2, 0x58, 0x2c, 0xde, 0xc6, 0x2c, 0xe2, 0x77, 0x7a, 0xc2, 0x7b, 0x86, 0x63, 0x7c, 0x69,
-	0x30, 0x5c, 0x78, 0x55, 0x97, 0x62, 0x31, 0x18, 0x63, 0x3d, 0xeb, 0x5d, 0x6c, 0x0c, 0x74, 0x04,
-	0x9d, 0x28, 0xce, 0xc8, 0x55, 0x42, 0x4f, 0x47, 0x4c, 0x8e, 0xae, 0x69, 0xf8, 0x41, 0xcf, 0xdb,
-	0xc3, 0x6b, 0xb8, 0xaa, 0x86, 0x44, 0x62, 0xc2, 0x24, 0x15, 0xb7, 0x24, 0xf1, 0x9b, 0xa6, 0x9a,
-	0x0a, 0x84, 0x8e, 0x01, 0xc5, 0x2c, 0x93, 0x24, 0x31, 0xeb, 0xf4, 0x8a, 0x88, 0xf7, 0x31, 0xf3,
-	0x41, 0xeb, 0x67, 0x83, 0x27, 0xf8, 0xdb, 0x81, 0xfd, 0x6f, 0x09, 0x8b, 0x12, 0xaa, 0x44, 0x71,
-	0x91, 0xe6, 0xb3, 0x3c, 0x80, 0x7a, 0x44, 0x6f, 0x4f, 0x2e, 0x26, 0x96, 0x47, 0x6b, 0x29, 0x9c,
-	0xa4, 0xa9, 0xc2, 0x0d, 0x85, 0xd6, 0x52, 0xda, 0x9f, 0x8d, 0x98, 0xb4, 0xf4, 0xe9, 0xb3, 0xea,
-	0x77, 0x76, 0xc6, 0x45, 0xce, 0x9a, 0x31, 0xd4, 0x4d, 0xa5, 0x3a, 0xbd, 0x25, 0x6d, 0xac, 0xcf,
-	0x28, 0x80, 0xba, 0x5c, 0x28, 0x3d, 0x6b, 0x06, 0x5b, 0x03, 0x50, 0x0c, 0x1a, 0x85, 0x63, 0xeb,
-	0x51, 0x77, 0x84, 0xb9, 0xd3, 0xe8, 0xbb, 0xf9, 0x1d, 0x6c, 0xef, 0x18, 0x4f, 0xf0, 0x87, 0x03,
-	0x5d, 0xd3, 0xcd, 0x99, 0xe0, 0xa9, 0x88, 0xa9, 0x24, 0x62, 0x59, 0x36, 0xa5, 0xde, 0x1e, 0x12,
-	0x7e, 0x24, 0x90, 0x12, 0xd1, 0x8f, 0x42, 0x1c, 0xda, 0xce, 0xd4, 0xb1, 0x52, 0x98, 0xfb, 0x09,
-	0x85, 0xd5, 0xee, 0x2d, 0xec, 0x09, 0x3c, 0xde, 0x58, 0x97, 0x51, 0x6e, 0xf0, 0x9b, 0x03, 0xe8,
-	0x05, 0x95, 0x6a, 0x04, 0x63, 0x7e, 0xc7, 0x3e, 0x77, 0x08, 0x5f, 0xc3, 0xde, 0x9c, 0x2c, 0x6c,
-	0x37, 0xe7, 0xf1, 0x4f, 0xd4, 0x8e, 0xe3, 0x23, 0xb4, 0x18, 0x56, 0xad, 0x1c, 0x56, 0xb0, 0x84,
-	0xfd, 0x95, 0x0a, 0xec, 0x4e, 0xe5, 0xd3, 0x72, 0x2a, 0xd3, 0xea, 0x41, 0x33, 0xe4, 0x6c, 0x16,
-	0x8b, 0x39, 0x8d, 0x74, 0x05, 0x1e, 0x2e, 0x81, 0x72, 0xea, 0x6e, 0x75, 0xea, 0x5d, 0xf0, 0xe6,
-	0x5c, 0x68, 0x91, 0xe9, 0xb4, 0x1e, 0x2e, 0xec, 0xe0, 0x00, 0x1e, 0xae, 0x4a, 0xd0, 0xb2, 0xf2,
-	0x03, 0xf8, 0x25, 0xae, 0xaa, 0x1a, 0x8e, 0x5e, 0xfe, 0x87, 0xfa, 0x0c, 0x1e, 0xc3, 0x17, 0x1b,
-	0xe2, 0xdb, 0xe4, 0xbf, 0x00, 0x32, 0xce, 0x13, 0x21, 0xb8, 0xf8, 0xdc, 0xb4, 0x5f, 0x41, 0x4d,
-	0x2e, 0x53, 0x33, 0x87, 0xbd, 0xc1, 0xae, 0x52, 0x86, 0x8e, 0x37, 0x5d, 0xa6, 0x14, 0x6b, 0x97,
-	0xe2, 0x8b, 0x2a, 0xc8, 0x3e, 0xb2, 0xc6, 0x08, 0xfe, 0x9f, 0xaf, 0xa5, 0x4d, 0x6f, 0xaa, 0x3a,
-	0xea, 0x81, 0x97, 0x3f, 0x2c, 0xa8, 0x01, 0x2e, 0xbe, 0x7c, 0xd6, 0xd9, 0x32, 0x87, 0x41, 0xc7,
-	0x39, 0x3a, 0x81, 0x66, 0x11, 0x1d, 0xb5, 0xa0, 0xf1, 0x82, 0x32, 0x2a, 0xe2, 0xb0, 0xb3, 0x85,
-	0x3c, 0xa8, 0xbd, 0x99, 0x0e, 0x87, 0x1d, 0x07, 0x75, 0xa0, 0x3d, 0x1e, 0x4e, 0x87, 0xef, 0x2e,
-	0xce, 0xde, 0x9d, 0x8e, 0x5e, 0x4f, 0x3b, 0xdb, 0xe8, 0x7f, 0xd0, 0xca, 0x91, 0x57, 0x93, 0x51,
-	0xc7, 0x1d, 0xfc, 0xe3, 0xc2, 0x83, 0x61, 0x9a, 0x26, 0x71, 0xa8, 0x5f, 0x8a, 0x73, 0x2a, 0x6e,
-	0xa9, 0x40, 0xcf, 0xa1, 0x55, 0x79, 0x74, 0xd1, 0x81, 0xea, 0x65, 0xfd, 0x9f, 0x40, 0xf7, 0xd1,
-	0x1a, 0x6e, 0x09, 0xdd, 0x42, 0x23, 0x68, 0x57, 0xe7, 0x8c, 0xf4, 0xd5, 0x0d, 0x8f, 0x4f, 0xd7,
-	0x5f, 0x77, 0x14, 0x41, 0x2e, 0x73, 0x62, 0x56, 0x36, 0x09, 0x3d, 0x2d, 0x3f, 0xd9, 0xb4, 0xfa,
-	0xdd, 0x2f, 0xef, 0xf5, 0x17, 0x91, 0x9f, 0x43, 0xab, 0xb2, 0x01, 0xa6, 0xc1, 0xf5, 0xa5, 0x34,
-	0x0d, 0x6e, 0x58, 0x95, 0x60, 0x0b, 0x61, 0x78, 0xb0, 0x26, 0x28, 0xd4, 0x5b, 0x6d, 0x66, 0x55,
-	0xc7, 0xdd, 0x27, 0xf7, 0x78, 0xab, 0x55, 0x55, 0x84, 0x60, 0xaa, 0x5a, 0x17, 0x66, 0xf7, 0xd1,
-	0x1a, 0x9e, 0x47, 0xb8, 0xaa, 0xeb, 0x5f, 0x62, 0xdf, 0xfc, 0x1b, 0x00, 0x00, 0xff, 0xff, 0x57,
-	0x76, 0x2b, 0xd2, 0x95, 0x09, 0x00, 0x00,
+	// 803 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x55, 0xdd, 0x76, 0xea, 0x44,
+	0x14, 0x6e, 0xf8, 0x0d, 0x1b, 0x8e, 0xe6, 0xcc, 0xd1, 0x9e, 0xc8, 0xc1, 0x63, 0x4f, 0xbc, 0xe9,
+	0xea, 0x05, 0x4b, 0xf1, 0x05, 0x44, 0x48, 0x95, 0xe5, 0x6a, 0x8b, 0x03, 0xd8, 0x2e, 0x6f, 0x58,
+	0xd3, 0xcc, 0x50, 0x63, 0x43, 0x26, 0x4e, 0x86, 0x56, 0x2e, 0xf4, 0xd2, 0x87, 0xf0, 0x2d, 0x7c,
+	0x09, 0x9f, 0xc3, 0x47, 0x71, 0xcd, 0x4c, 0x02, 0xa9, 0x80, 0xf5, 0x6e, 0xef, 0xef, 0xdb, 0xb3,
+	0x7f, 0xbe, 0xbd, 0x03, 0x60, 0x93, 0xb4, 0x9b, 0x08, 0x2e, 0x39, 0x2a, 0x91, 0xd4, 0xfb, 0xdd,
+	0x02, 0x7b, 0x48, 0x24, 0xc1, 0x44, 0x32, 0xf4, 0x16, 0x60, 0xc9, 0xe9, 0x2a, 0x22, 0x32, 0xe4,
+	0xb1, 0x6b, 0x9d, 0x58, 0xa7, 0x0d, 0x5c, 0x40, 0x50, 0x07, 0x1a, 0xb7, 0x24, 0xa6, 0xd7, 0x21,
+	0x95, 0x3f, 0xba, 0xa5, 0x13, 0xeb, 0xf4, 0x05, 0xde, 0x02, 0xc8, 0x83, 0x56, 0x9a, 0x08, 0x46,
+	0xe8, 0x39, 0x09, 0x24, 0x17, 0x6e, 0x59, 0x07, 0x3c, 0xc1, 0x90, 0x0b, 0xf5, 0xdb, 0x50, 0x0a,
+	0x22, 0x99, 0x5b, 0xd1, 0x74, 0xee, 0x7a, 0x7f, 0x59, 0x50, 0xc3, 0x37, 0xa3, 0x78, 0xc1, 0x91,
+	0x03, 0xe5, 0x25, 0x09, 0x74, 0xfd, 0x16, 0x56, 0x26, 0x42, 0x50, 0x91, 0xe1, 0x92, 0xe9, 0x9a,
+	0x0d, 0xac, 0x6d, 0x85, 0x89, 0x34, 0x0d, 0x75, 0x99, 0x2a, 0xd6, 0xb6, 0x4a, 0x1f, 0x71, 0x4c,
+	0x26, 0x97, 0x58, 0xa7, 0xb7, 0x70, 0xee, 0xaa, 0xe8, 0x98, 0x2c, 0x99, 0x5b, 0x35, 0x19, 0x94,
+	0x8d, 0xda, 0x60, 0xab, 0xc1, 0xe4, 0x8a, 0x32, 0xb7, 0xa6, 0xc3, 0x37, 0xbe, 0x1a, 0x35, 0xe2,
+	0xf1, 0x9d, 0x21, 0xeb, 0x9a, 0xdc, 0x02, 0xea, 0x25, 0x89, 0xb2, 0x97, 0xb6, 0x79, 0x99, 0xfb,
+	0xde, 0x6f, 0x50, 0x9b, 0x9a, 0x39, 0x3a, 0xd0, 0x58, 0x08, 0xf6, 0xf3, 0x8a, 0xc5, 0xc1, 0x5a,
+	0x4f, 0x53, 0xc6, 0x5b, 0x00, 0x9d, 0x82, 0x4d, 0x33, 0xe1, 0xf5, 0x5c, 0xcd, 0x5e, 0xab, 0x4b,
+	0xd2, 0x6e, 0xbe, 0x0c, 0xbc, 0x61, 0x95, 0x1e, 0x84, 0x1a, 0x3d, 0x6d, 0xac, 0x4c, 0x55, 0x3f,
+	0xe0, 0x94, 0xe1, 0x5c, 0xc7, 0x06, 0xde, 0xf8, 0xde, 0x9f, 0x25, 0x78, 0xfd, 0x0d, 0x89, 0x69,
+	0xc4, 0x66, 0x49, 0x14, 0xc6, 0xf7, 0x3a, 0xa1, 0x2a, 0x9a, 0x4a, 0x74, 0x0c, 0x35, 0xca, 0x1e,
+	0xfc, 0xd9, 0x28, 0x13, 0x37, 0xf3, 0x14, 0x4e, 0x92, 0x44, 0xe1, 0x25, 0x83, 0x1b, 0x4f, 0xa9,
+	0xb6, 0x18, 0xc4, 0x32, 0x5b, 0xa5, 0xb6, 0xd1, 0x07, 0x50, 0x5d, 0x8c, 0xb9, 0x90, 0xd9, 0x02,
+	0x8d, 0xa3, 0x22, 0x55, 0xbf, 0x5a, 0xdf, 0x16, 0xd6, 0x36, 0xf2, 0xa0, 0x26, 0x7f, 0x51, 0x4a,
+	0x68, 0x75, 0x9b, 0x3d, 0x50, 0xf3, 0x19, 0x6d, 0x70, 0xc6, 0xa8, 0x18, 0x61, 0x62, 0xea, 0x27,
+	0xe5, 0x3c, 0x06, 0x67, 0x31, 0x86, 0x41, 0x9f, 0xc1, 0x2b, 0xca, 0x1e, 0xc2, 0x80, 0x4d, 0x24,
+	0x91, 0xab, 0xf4, 0x2b, 0x22, 0x25, 0x13, 0x6b, 0xb7, 0xa1, 0xeb, 0xef, 0xa3, 0x50, 0x17, 0x50,
+	0x11, 0xbe, 0x20, 0xe2, 0x2e, 0x8c, 0x5d, 0xd0, 0x97, 0xb2, 0x87, 0xf1, 0xfe, 0xb0, 0xe0, 0xad,
+	0xd1, 0x6c, 0x2c, 0x78, 0x22, 0x42, 0x26, 0x89, 0x58, 0x1b, 0xf9, 0x72, 0xe9, 0xd4, 0xb7, 0x41,
+	0x82, 0x31, 0x59, 0x47, 0x9c, 0xd0, 0x4c, 0xbe, 0x02, 0xa2, 0x8f, 0x36, 0x0c, 0x32, 0xfd, 0x94,
+	0x59, 0x18, 0xbf, 0xfc, 0x3f, 0xc6, 0xaf, 0x1c, 0x1a, 0xdf, 0x7b, 0x07, 0x9f, 0x1c, 0xec, 0x2d,
+	0x4d, 0x78, 0x9c, 0x32, 0xaf, 0x0d, 0xee, 0xee, 0xca, 0x33, 0x6e, 0x0d, 0xc8, 0x70, 0xbe, 0x10,
+	0x5c, 0x3c, 0x77, 0x09, 0xef, 0xa0, 0x22, 0xd7, 0x09, 0xd3, 0x2d, 0xbf, 0xd7, 0x7b, 0xa1, 0xda,
+	0xd1, 0xef, 0xa6, 0xeb, 0x84, 0x61, 0x4d, 0xa9, 0x03, 0x60, 0x0a, 0xca, 0x2e, 0xcf, 0x38, 0x9b,
+	0x53, 0xa9, 0x6e, 0x4f, 0xc5, 0xfb, 0x10, 0x5e, 0x3d, 0x29, 0x9d, 0x75, 0xf4, 0x53, 0xde, 0xed,
+	0x90, 0x3f, 0xc6, 0xaa, 0xdf, 0xfe, 0xe0, 0xdb, 0xe7, 0xfa, 0xca, 0xd3, 0x97, 0x0a, 0x97, 0xe8,
+	0x41, 0x8b, 0x04, 0xf7, 0x31, 0x7f, 0x8c, 0x18, 0xbd, 0x63, 0x34, 0xfb, 0x40, 0x9e, 0x60, 0xde,
+	0x1b, 0xf8, 0x68, 0x4f, 0x2d, 0xd3, 0xc8, 0x59, 0x07, 0x6c, 0x7c, 0x73, 0x1d, 0xc6, 0x94, 0x3f,
+	0xa2, 0x3a, 0x94, 0xf1, 0xcd, 0xe7, 0xce, 0x91, 0x31, 0x7a, 0x8e, 0x75, 0xf6, 0x2b, 0x34, 0x36,
+	0xa3, 0xa3, 0x26, 0xd4, 0xbf, 0x66, 0x31, 0x13, 0x61, 0xe0, 0x1c, 0x21, 0x1b, 0x2a, 0x57, 0xd3,
+	0x7e, 0xdf, 0xb1, 0x90, 0x03, 0xad, 0x61, 0x7f, 0xda, 0x9f, 0xcf, 0xc6, 0xf3, 0xf3, 0xc1, 0xe5,
+	0xd4, 0x29, 0xa1, 0xf7, 0xa1, 0x99, 0x23, 0x17, 0xa3, 0x81, 0x53, 0x46, 0x6d, 0x38, 0x1e, 0xfa,
+	0xdf, 0x8f, 0x06, 0xfe, 0xfc, 0xbb, 0x99, 0x3f, 0xf3, 0xe7, 0xa3, 0xa9, 0x7f, 0x31, 0x9f, 0x8c,
+	0x7e, 0xf0, 0x9d, 0xca, 0x7e, 0x4e, 0x27, 0xaa, 0xf6, 0xfe, 0x2e, 0xc1, 0xcb, 0x7e, 0x92, 0x44,
+	0x61, 0xa0, 0x7f, 0x7c, 0x27, 0x4c, 0x3c, 0x30, 0x81, 0xae, 0xc0, 0xf9, 0xf7, 0xa6, 0xd1, 0x1b,
+	0xb5, 0xa5, 0x03, 0x9f, 0x7c, 0xbb, 0xb3, 0x9f, 0xcc, 0x56, 0x71, 0x84, 0x68, 0xfe, 0x6b, 0xb1,
+	0x73, 0x5d, 0xc8, 0xdb, 0x3e, 0x3d, 0xf4, 0x59, 0xb4, 0x3f, 0xfd, 0xcf, 0x98, 0x4d, 0x95, 0x2f,
+	0xa1, 0x59, 0xb8, 0x04, 0x74, 0xbc, 0x7d, 0x55, 0xbc, 0xca, 0xf6, 0xeb, 0x1d, 0x7c, 0x93, 0x01,
+	0xc3, 0xcb, 0x9d, 0x45, 0xa2, 0xc2, 0x70, 0xbb, 0xb7, 0xd4, 0xfe, 0xf8, 0x00, 0x9b, 0xe7, 0xbc,
+	0xad, 0xe9, 0xff, 0xc1, 0x2f, 0xfe, 0x09, 0x00, 0x00, 0xff, 0xff, 0xf7, 0x4a, 0xa7, 0x75, 0x13,
+	0x07, 0x00, 0x00,
 }

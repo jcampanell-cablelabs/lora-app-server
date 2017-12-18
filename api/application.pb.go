@@ -41,26 +41,16 @@ type CreateApplicationRequest struct {
 	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
 	// Description of the application.
 	Description string `protobuf:"bytes,2,opt,name=description" json:"description,omitempty"`
-	// RX delay.
-	RxDelay uint32 `protobuf:"varint,3,opt,name=rxDelay" json:"rxDelay,omitempty"`
-	// RX1 data-rate offset.
-	Rx1DROffset uint32 `protobuf:"varint,4,opt,name=rx1DROffset" json:"rx1DROffset,omitempty"`
-	// RX window to use.
-	RxWindow RXWindow `protobuf:"varint,6,opt,name=rxWindow,enum=api.RXWindow" json:"rxWindow,omitempty"`
-	// Data-rate to use for RX2.
-	Rx2DR uint32 `protobuf:"varint,7,opt,name=rx2DR" json:"rx2DR,omitempty"`
-	// Relax frame-counter mode is enabled.
-	RelaxFCnt bool `protobuf:"varint,8,opt,name=relaxFCnt" json:"relaxFCnt,omitempty"`
-	// Interval (in frames) in which the ADR engine may adapt the data-rate of the node (0 = disabled).
-	AdrInterval uint32 `protobuf:"varint,9,opt,name=adrInterval" json:"adrInterval,omitempty"`
-	// Installation-margin to use for ADR calculation.
-	InstallationMargin float64 `protobuf:"fixed64,10,opt,name=installationMargin" json:"installationMargin,omitempty"`
-	// Node is activated by ABP.
-	IsABP bool `protobuf:"varint,11,opt,name=isABP" json:"isABP,omitempty"`
-	// Node operates in Class-C.
-	IsClassC bool `protobuf:"varint,12,opt,name=isClassC" json:"isClassC,omitempty"`
 	// ID of the organization to which the application belongs.
 	OrganizationID int64 `protobuf:"varint,14,opt,name=organizationID" json:"organizationID,omitempty"`
+	// ID of the service profile.
+	ServiceProfileID string `protobuf:"bytes,15,opt,name=serviceProfileID" json:"serviceProfileID,omitempty"`
+	// Payload codec.
+	PayloadCodec string `protobuf:"bytes,16,opt,name=payloadCodec" json:"payloadCodec,omitempty"`
+	// Payload encoder script.
+	PayloadEncoderScript string `protobuf:"bytes,17,opt,name=payloadEncoderScript" json:"payloadEncoderScript,omitempty"`
+	// Payload decoder script.
+	PayloadDecoderScript string `protobuf:"bytes,18,opt,name=payloadDecoderScript" json:"payloadDecoderScript,omitempty"`
 }
 
 func (m *CreateApplicationRequest) Reset()                    { *m = CreateApplicationRequest{} }
@@ -82,74 +72,39 @@ func (m *CreateApplicationRequest) GetDescription() string {
 	return ""
 }
 
-func (m *CreateApplicationRequest) GetRxDelay() uint32 {
-	if m != nil {
-		return m.RxDelay
-	}
-	return 0
-}
-
-func (m *CreateApplicationRequest) GetRx1DROffset() uint32 {
-	if m != nil {
-		return m.Rx1DROffset
-	}
-	return 0
-}
-
-func (m *CreateApplicationRequest) GetRxWindow() RXWindow {
-	if m != nil {
-		return m.RxWindow
-	}
-	return RXWindow_RX1
-}
-
-func (m *CreateApplicationRequest) GetRx2DR() uint32 {
-	if m != nil {
-		return m.Rx2DR
-	}
-	return 0
-}
-
-func (m *CreateApplicationRequest) GetRelaxFCnt() bool {
-	if m != nil {
-		return m.RelaxFCnt
-	}
-	return false
-}
-
-func (m *CreateApplicationRequest) GetAdrInterval() uint32 {
-	if m != nil {
-		return m.AdrInterval
-	}
-	return 0
-}
-
-func (m *CreateApplicationRequest) GetInstallationMargin() float64 {
-	if m != nil {
-		return m.InstallationMargin
-	}
-	return 0
-}
-
-func (m *CreateApplicationRequest) GetIsABP() bool {
-	if m != nil {
-		return m.IsABP
-	}
-	return false
-}
-
-func (m *CreateApplicationRequest) GetIsClassC() bool {
-	if m != nil {
-		return m.IsClassC
-	}
-	return false
-}
-
 func (m *CreateApplicationRequest) GetOrganizationID() int64 {
 	if m != nil {
 		return m.OrganizationID
 	}
 	return 0
+}
+
+func (m *CreateApplicationRequest) GetServiceProfileID() string {
+	if m != nil {
+		return m.ServiceProfileID
+	}
+	return ""
+}
+
+func (m *CreateApplicationRequest) GetPayloadCodec() string {
+	if m != nil {
+		return m.PayloadCodec
+	}
+	return ""
+}
+
+func (m *CreateApplicationRequest) GetPayloadEncoderScript() string {
+	if m != nil {
+		return m.PayloadEncoderScript
+	}
+	return ""
+}
+
+func (m *CreateApplicationRequest) GetPayloadDecoderScript() string {
+	if m != nil {
+		return m.PayloadDecoderScript
+	}
+	return ""
 }
 
 type CreateApplicationResponse struct {
@@ -193,26 +148,16 @@ type GetApplicationResponse struct {
 	Name string `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
 	// Description of the application.
 	Description string `protobuf:"bytes,3,opt,name=description" json:"description,omitempty"`
-	// RX delay.
-	RxDelay uint32 `protobuf:"varint,4,opt,name=rxDelay" json:"rxDelay,omitempty"`
-	// RX1 data-rate offset.
-	Rx1DROffset uint32 `protobuf:"varint,5,opt,name=rx1DROffset" json:"rx1DROffset,omitempty"`
-	// RX window to use.
-	RxWindow RXWindow `protobuf:"varint,7,opt,name=rxWindow,enum=api.RXWindow" json:"rxWindow,omitempty"`
-	// Data-rate to use for RX2.
-	Rx2DR uint32 `protobuf:"varint,8,opt,name=rx2DR" json:"rx2DR,omitempty"`
-	// Relax frame-counter mode is enabled.
-	RelaxFCnt bool `protobuf:"varint,9,opt,name=relaxFCnt" json:"relaxFCnt,omitempty"`
-	// Interval (in frames) in which the ADR engine may adapt the data-rate of the node (0 = disabled).
-	AdrInterval uint32 `protobuf:"varint,10,opt,name=adrInterval" json:"adrInterval,omitempty"`
-	// Installation-margin to use for ADR calculation.
-	InstallationMargin float64 `protobuf:"fixed64,11,opt,name=installationMargin" json:"installationMargin,omitempty"`
-	// Node is activated by ABP.
-	IsABP bool `protobuf:"varint,12,opt,name=isABP" json:"isABP,omitempty"`
-	// Node operates in Class-C.
-	IsClassC bool `protobuf:"varint,13,opt,name=isClassC" json:"isClassC,omitempty"`
 	// ID of the organization to which the application belongs.
 	OrganizationID int64 `protobuf:"varint,14,opt,name=organizationID" json:"organizationID,omitempty"`
+	// ID of the service profile.
+	ServiceProfileID string `protobuf:"bytes,15,opt,name=serviceProfileID" json:"serviceProfileID,omitempty"`
+	// Payload codec.
+	PayloadCodec string `protobuf:"bytes,16,opt,name=payloadCodec" json:"payloadCodec,omitempty"`
+	// Payload encoder script.
+	PayloadEncoderScript string `protobuf:"bytes,17,opt,name=payloadEncoderScript" json:"payloadEncoderScript,omitempty"`
+	// Payload decoder script.
+	PayloadDecoderScript string `protobuf:"bytes,18,opt,name=payloadDecoderScript" json:"payloadDecoderScript,omitempty"`
 }
 
 func (m *GetApplicationResponse) Reset()                    { *m = GetApplicationResponse{} }
@@ -241,74 +186,39 @@ func (m *GetApplicationResponse) GetDescription() string {
 	return ""
 }
 
-func (m *GetApplicationResponse) GetRxDelay() uint32 {
-	if m != nil {
-		return m.RxDelay
-	}
-	return 0
-}
-
-func (m *GetApplicationResponse) GetRx1DROffset() uint32 {
-	if m != nil {
-		return m.Rx1DROffset
-	}
-	return 0
-}
-
-func (m *GetApplicationResponse) GetRxWindow() RXWindow {
-	if m != nil {
-		return m.RxWindow
-	}
-	return RXWindow_RX1
-}
-
-func (m *GetApplicationResponse) GetRx2DR() uint32 {
-	if m != nil {
-		return m.Rx2DR
-	}
-	return 0
-}
-
-func (m *GetApplicationResponse) GetRelaxFCnt() bool {
-	if m != nil {
-		return m.RelaxFCnt
-	}
-	return false
-}
-
-func (m *GetApplicationResponse) GetAdrInterval() uint32 {
-	if m != nil {
-		return m.AdrInterval
-	}
-	return 0
-}
-
-func (m *GetApplicationResponse) GetInstallationMargin() float64 {
-	if m != nil {
-		return m.InstallationMargin
-	}
-	return 0
-}
-
-func (m *GetApplicationResponse) GetIsABP() bool {
-	if m != nil {
-		return m.IsABP
-	}
-	return false
-}
-
-func (m *GetApplicationResponse) GetIsClassC() bool {
-	if m != nil {
-		return m.IsClassC
-	}
-	return false
-}
-
 func (m *GetApplicationResponse) GetOrganizationID() int64 {
 	if m != nil {
 		return m.OrganizationID
 	}
 	return 0
+}
+
+func (m *GetApplicationResponse) GetServiceProfileID() string {
+	if m != nil {
+		return m.ServiceProfileID
+	}
+	return ""
+}
+
+func (m *GetApplicationResponse) GetPayloadCodec() string {
+	if m != nil {
+		return m.PayloadCodec
+	}
+	return ""
+}
+
+func (m *GetApplicationResponse) GetPayloadEncoderScript() string {
+	if m != nil {
+		return m.PayloadEncoderScript
+	}
+	return ""
+}
+
+func (m *GetApplicationResponse) GetPayloadDecoderScript() string {
+	if m != nil {
+		return m.PayloadDecoderScript
+	}
+	return ""
 }
 
 type UpdateApplicationRequest struct {
@@ -318,26 +228,14 @@ type UpdateApplicationRequest struct {
 	Name string `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
 	// Description of the application.
 	Description string `protobuf:"bytes,3,opt,name=description" json:"description,omitempty"`
-	// RX delay.
-	RxDelay uint32 `protobuf:"varint,4,opt,name=rxDelay" json:"rxDelay,omitempty"`
-	// RX1 data-rate offset.
-	Rx1DROffset uint32 `protobuf:"varint,5,opt,name=rx1DROffset" json:"rx1DROffset,omitempty"`
-	// RX window to use.
-	RxWindow RXWindow `protobuf:"varint,7,opt,name=rxWindow,enum=api.RXWindow" json:"rxWindow,omitempty"`
-	// Data-rate to use for RX2.
-	Rx2DR uint32 `protobuf:"varint,8,opt,name=rx2DR" json:"rx2DR,omitempty"`
-	// Relax frame-counter mode is enabled.
-	RelaxFCnt bool `protobuf:"varint,9,opt,name=relaxFCnt" json:"relaxFCnt,omitempty"`
-	// Interval (in frames) in which the ADR engine may adapt the data-rate of the node (0 = disabled).
-	AdrInterval uint32 `protobuf:"varint,10,opt,name=adrInterval" json:"adrInterval,omitempty"`
-	// Installation-margin to use for ADR calculation.
-	InstallationMargin float64 `protobuf:"fixed64,11,opt,name=installationMargin" json:"installationMargin,omitempty"`
-	// Node is activated by ABP.
-	IsABP bool `protobuf:"varint,12,opt,name=isABP" json:"isABP,omitempty"`
-	// Node operates in Class-C.
-	IsClassC bool `protobuf:"varint,13,opt,name=isClassC" json:"isClassC,omitempty"`
-	// ID of the organization to which the application belongs.
-	OrganizationID int64 `protobuf:"varint,14,opt,name=organizationID" json:"organizationID,omitempty"`
+	// ID of the service profile.
+	ServiceProfileID string `protobuf:"bytes,15,opt,name=serviceProfileID" json:"serviceProfileID,omitempty"`
+	// Payload codec.
+	PayloadCodec string `protobuf:"bytes,16,opt,name=payloadCodec" json:"payloadCodec,omitempty"`
+	// Payload encoder script.
+	PayloadEncoderScript string `protobuf:"bytes,17,opt,name=payloadEncoderScript" json:"payloadEncoderScript,omitempty"`
+	// Payload decoder script.
+	PayloadDecoderScript string `protobuf:"bytes,18,opt,name=payloadDecoderScript" json:"payloadDecoderScript,omitempty"`
 }
 
 func (m *UpdateApplicationRequest) Reset()                    { *m = UpdateApplicationRequest{} }
@@ -366,74 +264,32 @@ func (m *UpdateApplicationRequest) GetDescription() string {
 	return ""
 }
 
-func (m *UpdateApplicationRequest) GetRxDelay() uint32 {
+func (m *UpdateApplicationRequest) GetServiceProfileID() string {
 	if m != nil {
-		return m.RxDelay
+		return m.ServiceProfileID
 	}
-	return 0
+	return ""
 }
 
-func (m *UpdateApplicationRequest) GetRx1DROffset() uint32 {
+func (m *UpdateApplicationRequest) GetPayloadCodec() string {
 	if m != nil {
-		return m.Rx1DROffset
+		return m.PayloadCodec
 	}
-	return 0
+	return ""
 }
 
-func (m *UpdateApplicationRequest) GetRxWindow() RXWindow {
+func (m *UpdateApplicationRequest) GetPayloadEncoderScript() string {
 	if m != nil {
-		return m.RxWindow
+		return m.PayloadEncoderScript
 	}
-	return RXWindow_RX1
+	return ""
 }
 
-func (m *UpdateApplicationRequest) GetRx2DR() uint32 {
+func (m *UpdateApplicationRequest) GetPayloadDecoderScript() string {
 	if m != nil {
-		return m.Rx2DR
+		return m.PayloadDecoderScript
 	}
-	return 0
-}
-
-func (m *UpdateApplicationRequest) GetRelaxFCnt() bool {
-	if m != nil {
-		return m.RelaxFCnt
-	}
-	return false
-}
-
-func (m *UpdateApplicationRequest) GetAdrInterval() uint32 {
-	if m != nil {
-		return m.AdrInterval
-	}
-	return 0
-}
-
-func (m *UpdateApplicationRequest) GetInstallationMargin() float64 {
-	if m != nil {
-		return m.InstallationMargin
-	}
-	return 0
-}
-
-func (m *UpdateApplicationRequest) GetIsABP() bool {
-	if m != nil {
-		return m.IsABP
-	}
-	return false
-}
-
-func (m *UpdateApplicationRequest) GetIsClassC() bool {
-	if m != nil {
-		return m.IsClassC
-	}
-	return false
-}
-
-func (m *UpdateApplicationRequest) GetOrganizationID() int64 {
-	if m != nil {
-		return m.OrganizationID
-	}
-	return 0
+	return ""
 }
 
 type UpdateApplicationResponse struct {
@@ -504,17 +360,79 @@ func (m *ListApplicationRequest) GetOrganizationID() int64 {
 	return 0
 }
 
+type ApplicationListItem struct {
+	// ID of the application.
+	Id int64 `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
+	// Name of the application.
+	Name string `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
+	// Description of the application.
+	Description string `protobuf:"bytes,3,opt,name=description" json:"description,omitempty"`
+	// ID of the organization to which the application belongs.
+	OrganizationID int64 `protobuf:"varint,14,opt,name=organizationID" json:"organizationID,omitempty"`
+	// ID of the service profile.
+	ServiceProfileID string `protobuf:"bytes,15,opt,name=serviceProfileID" json:"serviceProfileID,omitempty"`
+	// Service-profile name.
+	ServiceProfileName string `protobuf:"bytes,16,opt,name=serviceProfileName" json:"serviceProfileName,omitempty"`
+}
+
+func (m *ApplicationListItem) Reset()                    { *m = ApplicationListItem{} }
+func (m *ApplicationListItem) String() string            { return proto.CompactTextString(m) }
+func (*ApplicationListItem) ProtoMessage()               {}
+func (*ApplicationListItem) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{9} }
+
+func (m *ApplicationListItem) GetId() int64 {
+	if m != nil {
+		return m.Id
+	}
+	return 0
+}
+
+func (m *ApplicationListItem) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *ApplicationListItem) GetDescription() string {
+	if m != nil {
+		return m.Description
+	}
+	return ""
+}
+
+func (m *ApplicationListItem) GetOrganizationID() int64 {
+	if m != nil {
+		return m.OrganizationID
+	}
+	return 0
+}
+
+func (m *ApplicationListItem) GetServiceProfileID() string {
+	if m != nil {
+		return m.ServiceProfileID
+	}
+	return ""
+}
+
+func (m *ApplicationListItem) GetServiceProfileName() string {
+	if m != nil {
+		return m.ServiceProfileName
+	}
+	return ""
+}
+
 type ListApplicationResponse struct {
 	// Total number of applications available within the result-set.
 	TotalCount int64 `protobuf:"varint,1,opt,name=totalCount" json:"totalCount,omitempty"`
 	// Applications within this result-set.
-	Result []*GetApplicationResponse `protobuf:"bytes,2,rep,name=result" json:"result,omitempty"`
+	Result []*ApplicationListItem `protobuf:"bytes,2,rep,name=result" json:"result,omitempty"`
 }
 
 func (m *ListApplicationResponse) Reset()                    { *m = ListApplicationResponse{} }
 func (m *ListApplicationResponse) String() string            { return proto.CompactTextString(m) }
 func (*ListApplicationResponse) ProtoMessage()               {}
-func (*ListApplicationResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{9} }
+func (*ListApplicationResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{10} }
 
 func (m *ListApplicationResponse) GetTotalCount() int64 {
 	if m != nil {
@@ -523,212 +441,12 @@ func (m *ListApplicationResponse) GetTotalCount() int64 {
 	return 0
 }
 
-func (m *ListApplicationResponse) GetResult() []*GetApplicationResponse {
+func (m *ListApplicationResponse) GetResult() []*ApplicationListItem {
 	if m != nil {
 		return m.Result
 	}
 	return nil
 }
-
-type ListApplicationUsersRequest struct {
-	// The id of the application
-	Id int64 `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
-	// Max number of applications to return in the result-test.
-	Limit int64 `protobuf:"varint,2,opt,name=limit" json:"limit,omitempty"`
-	// Offset in the result-set (for pagination).
-	Offset int64 `protobuf:"varint,3,opt,name=offset" json:"offset,omitempty"`
-}
-
-func (m *ListApplicationUsersRequest) Reset()                    { *m = ListApplicationUsersRequest{} }
-func (m *ListApplicationUsersRequest) String() string            { return proto.CompactTextString(m) }
-func (*ListApplicationUsersRequest) ProtoMessage()               {}
-func (*ListApplicationUsersRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{10} }
-
-func (m *ListApplicationUsersRequest) GetId() int64 {
-	if m != nil {
-		return m.Id
-	}
-	return 0
-}
-
-func (m *ListApplicationUsersRequest) GetLimit() int64 {
-	if m != nil {
-		return m.Limit
-	}
-	return 0
-}
-
-func (m *ListApplicationUsersRequest) GetOffset() int64 {
-	if m != nil {
-		return m.Offset
-	}
-	return 0
-}
-
-type GetApplicationUserResponse struct {
-	// The id of the user
-	Id int64 `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
-	// The username for the user
-	Username string `protobuf:"bytes,2,opt,name=username" json:"username,omitempty"`
-	// Has admin rights.
-	IsAdmin bool `protobuf:"varint,3,opt,name=isAdmin" json:"isAdmin,omitempty"`
-}
-
-func (m *GetApplicationUserResponse) Reset()                    { *m = GetApplicationUserResponse{} }
-func (m *GetApplicationUserResponse) String() string            { return proto.CompactTextString(m) }
-func (*GetApplicationUserResponse) ProtoMessage()               {}
-func (*GetApplicationUserResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{11} }
-
-func (m *GetApplicationUserResponse) GetId() int64 {
-	if m != nil {
-		return m.Id
-	}
-	return 0
-}
-
-func (m *GetApplicationUserResponse) GetUsername() string {
-	if m != nil {
-		return m.Username
-	}
-	return ""
-}
-
-func (m *GetApplicationUserResponse) GetIsAdmin() bool {
-	if m != nil {
-		return m.IsAdmin
-	}
-	return false
-}
-
-type ListApplicationUsersResponse struct {
-	// Total number of applications available within the result-set.
-	TotalCount int32 `protobuf:"varint,1,opt,name=totalCount" json:"totalCount,omitempty"`
-	// Applications within this result-set.
-	Result []*GetApplicationUserResponse `protobuf:"bytes,2,rep,name=result" json:"result,omitempty"`
-}
-
-func (m *ListApplicationUsersResponse) Reset()                    { *m = ListApplicationUsersResponse{} }
-func (m *ListApplicationUsersResponse) String() string            { return proto.CompactTextString(m) }
-func (*ListApplicationUsersResponse) ProtoMessage()               {}
-func (*ListApplicationUsersResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{12} }
-
-func (m *ListApplicationUsersResponse) GetTotalCount() int32 {
-	if m != nil {
-		return m.TotalCount
-	}
-	return 0
-}
-
-func (m *ListApplicationUsersResponse) GetResult() []*GetApplicationUserResponse {
-	if m != nil {
-		return m.Result
-	}
-	return nil
-}
-
-type AddApplicationUserRequest struct {
-	// The application to be set to allow these users
-	Id int64 `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
-	// User id
-	UserID int64 `protobuf:"varint,2,opt,name=userID" json:"userID,omitempty"`
-	// admin rights?
-	IsAdmin bool `protobuf:"varint,3,opt,name=isAdmin" json:"isAdmin,omitempty"`
-}
-
-func (m *AddApplicationUserRequest) Reset()                    { *m = AddApplicationUserRequest{} }
-func (m *AddApplicationUserRequest) String() string            { return proto.CompactTextString(m) }
-func (*AddApplicationUserRequest) ProtoMessage()               {}
-func (*AddApplicationUserRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{13} }
-
-func (m *AddApplicationUserRequest) GetId() int64 {
-	if m != nil {
-		return m.Id
-	}
-	return 0
-}
-
-func (m *AddApplicationUserRequest) GetUserID() int64 {
-	if m != nil {
-		return m.UserID
-	}
-	return 0
-}
-
-func (m *AddApplicationUserRequest) GetIsAdmin() bool {
-	if m != nil {
-		return m.IsAdmin
-	}
-	return false
-}
-
-type ApplicationUserRequest struct {
-	// The application id
-	Id int64 `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
-	// The user id
-	UserID int64 `protobuf:"varint,2,opt,name=userID" json:"userID,omitempty"`
-}
-
-func (m *ApplicationUserRequest) Reset()                    { *m = ApplicationUserRequest{} }
-func (m *ApplicationUserRequest) String() string            { return proto.CompactTextString(m) }
-func (*ApplicationUserRequest) ProtoMessage()               {}
-func (*ApplicationUserRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{14} }
-
-func (m *ApplicationUserRequest) GetId() int64 {
-	if m != nil {
-		return m.Id
-	}
-	return 0
-}
-
-func (m *ApplicationUserRequest) GetUserID() int64 {
-	if m != nil {
-		return m.UserID
-	}
-	return 0
-}
-
-type UpdateApplicationUserRequest struct {
-	// The application id
-	Id int64 `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
-	// The user id
-	UserID int64 `protobuf:"varint,2,opt,name=userID" json:"userID,omitempty"`
-	// Is admin?
-	IsAdmin bool `protobuf:"varint,3,opt,name=isAdmin" json:"isAdmin,omitempty"`
-}
-
-func (m *UpdateApplicationUserRequest) Reset()                    { *m = UpdateApplicationUserRequest{} }
-func (m *UpdateApplicationUserRequest) String() string            { return proto.CompactTextString(m) }
-func (*UpdateApplicationUserRequest) ProtoMessage()               {}
-func (*UpdateApplicationUserRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{15} }
-
-func (m *UpdateApplicationUserRequest) GetId() int64 {
-	if m != nil {
-		return m.Id
-	}
-	return 0
-}
-
-func (m *UpdateApplicationUserRequest) GetUserID() int64 {
-	if m != nil {
-		return m.UserID
-	}
-	return 0
-}
-
-func (m *UpdateApplicationUserRequest) GetIsAdmin() bool {
-	if m != nil {
-		return m.IsAdmin
-	}
-	return false
-}
-
-type EmptyApplicationUserResponse struct {
-}
-
-func (m *EmptyApplicationUserResponse) Reset()                    { *m = EmptyApplicationUserResponse{} }
-func (m *EmptyApplicationUserResponse) String() string            { return proto.CompactTextString(m) }
-func (*EmptyApplicationUserResponse) ProtoMessage()               {}
-func (*EmptyApplicationUserResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{16} }
 
 type EmptyResponse struct {
 }
@@ -736,7 +454,7 @@ type EmptyResponse struct {
 func (m *EmptyResponse) Reset()                    { *m = EmptyResponse{} }
 func (m *EmptyResponse) String() string            { return proto.CompactTextString(m) }
 func (*EmptyResponse) ProtoMessage()               {}
-func (*EmptyResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{17} }
+func (*EmptyResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{11} }
 
 type HTTPIntegrationHeader struct {
 	// Key
@@ -748,7 +466,7 @@ type HTTPIntegrationHeader struct {
 func (m *HTTPIntegrationHeader) Reset()                    { *m = HTTPIntegrationHeader{} }
 func (m *HTTPIntegrationHeader) String() string            { return proto.CompactTextString(m) }
 func (*HTTPIntegrationHeader) ProtoMessage()               {}
-func (*HTTPIntegrationHeader) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{18} }
+func (*HTTPIntegrationHeader) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{12} }
 
 func (m *HTTPIntegrationHeader) GetKey() string {
 	if m != nil {
@@ -782,7 +500,7 @@ type HTTPIntegration struct {
 func (m *HTTPIntegration) Reset()                    { *m = HTTPIntegration{} }
 func (m *HTTPIntegration) String() string            { return proto.CompactTextString(m) }
 func (*HTTPIntegration) ProtoMessage()               {}
-func (*HTTPIntegration) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{19} }
+func (*HTTPIntegration) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{13} }
 
 func (m *HTTPIntegration) GetId() int64 {
 	if m != nil {
@@ -834,7 +552,7 @@ type GetHTTPIntegrationRequest struct {
 func (m *GetHTTPIntegrationRequest) Reset()                    { *m = GetHTTPIntegrationRequest{} }
 func (m *GetHTTPIntegrationRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetHTTPIntegrationRequest) ProtoMessage()               {}
-func (*GetHTTPIntegrationRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{20} }
+func (*GetHTTPIntegrationRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{14} }
 
 func (m *GetHTTPIntegrationRequest) GetId() int64 {
 	if m != nil {
@@ -851,7 +569,7 @@ type DeleteIntegrationRequest struct {
 func (m *DeleteIntegrationRequest) Reset()                    { *m = DeleteIntegrationRequest{} }
 func (m *DeleteIntegrationRequest) String() string            { return proto.CompactTextString(m) }
 func (*DeleteIntegrationRequest) ProtoMessage()               {}
-func (*DeleteIntegrationRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{21} }
+func (*DeleteIntegrationRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{15} }
 
 func (m *DeleteIntegrationRequest) GetId() int64 {
 	if m != nil {
@@ -868,7 +586,7 @@ type ListIntegrationRequest struct {
 func (m *ListIntegrationRequest) Reset()                    { *m = ListIntegrationRequest{} }
 func (m *ListIntegrationRequest) String() string            { return proto.CompactTextString(m) }
 func (*ListIntegrationRequest) ProtoMessage()               {}
-func (*ListIntegrationRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{22} }
+func (*ListIntegrationRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{16} }
 
 func (m *ListIntegrationRequest) GetId() int64 {
 	if m != nil {
@@ -885,7 +603,7 @@ type ListIntegrationResponse struct {
 func (m *ListIntegrationResponse) Reset()                    { *m = ListIntegrationResponse{} }
 func (m *ListIntegrationResponse) String() string            { return proto.CompactTextString(m) }
 func (*ListIntegrationResponse) ProtoMessage()               {}
-func (*ListIntegrationResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{23} }
+func (*ListIntegrationResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{17} }
 
 func (m *ListIntegrationResponse) GetKinds() []IntegrationKind {
 	if m != nil {
@@ -904,14 +622,8 @@ func init() {
 	proto.RegisterType((*DeleteApplicationRequest)(nil), "api.DeleteApplicationRequest")
 	proto.RegisterType((*DeleteApplicationResponse)(nil), "api.DeleteApplicationResponse")
 	proto.RegisterType((*ListApplicationRequest)(nil), "api.ListApplicationRequest")
+	proto.RegisterType((*ApplicationListItem)(nil), "api.ApplicationListItem")
 	proto.RegisterType((*ListApplicationResponse)(nil), "api.ListApplicationResponse")
-	proto.RegisterType((*ListApplicationUsersRequest)(nil), "api.ListApplicationUsersRequest")
-	proto.RegisterType((*GetApplicationUserResponse)(nil), "api.GetApplicationUserResponse")
-	proto.RegisterType((*ListApplicationUsersResponse)(nil), "api.ListApplicationUsersResponse")
-	proto.RegisterType((*AddApplicationUserRequest)(nil), "api.AddApplicationUserRequest")
-	proto.RegisterType((*ApplicationUserRequest)(nil), "api.ApplicationUserRequest")
-	proto.RegisterType((*UpdateApplicationUserRequest)(nil), "api.UpdateApplicationUserRequest")
-	proto.RegisterType((*EmptyApplicationUserResponse)(nil), "api.EmptyApplicationUserResponse")
 	proto.RegisterType((*EmptyResponse)(nil), "api.EmptyResponse")
 	proto.RegisterType((*HTTPIntegrationHeader)(nil), "api.HTTPIntegrationHeader")
 	proto.RegisterType((*HTTPIntegration)(nil), "api.HTTPIntegration")
@@ -943,16 +655,6 @@ type ApplicationClient interface {
 	Delete(ctx context.Context, in *DeleteApplicationRequest, opts ...grpc.CallOption) (*DeleteApplicationResponse, error)
 	// List lists the available applications.
 	List(ctx context.Context, in *ListApplicationRequest, opts ...grpc.CallOption) (*ListApplicationResponse, error)
-	// ListUsers lists the users for an application.
-	ListUsers(ctx context.Context, in *ListApplicationUsersRequest, opts ...grpc.CallOption) (*ListApplicationUsersResponse, error)
-	// AddUser adds a user to an application.
-	AddUser(ctx context.Context, in *AddApplicationUserRequest, opts ...grpc.CallOption) (*EmptyApplicationUserResponse, error)
-	// GetUser gets the user that is associated with the application.
-	GetUser(ctx context.Context, in *ApplicationUserRequest, opts ...grpc.CallOption) (*GetApplicationUserResponse, error)
-	// UpdateUser sets the user's access to the associated application.
-	UpdateUser(ctx context.Context, in *UpdateApplicationUserRequest, opts ...grpc.CallOption) (*EmptyApplicationUserResponse, error)
-	// DeleteUser deletes the user's access to the associated application.
-	DeleteUser(ctx context.Context, in *ApplicationUserRequest, opts ...grpc.CallOption) (*EmptyApplicationUserResponse, error)
 	// CreateHTTPIntegration creates an HTTP application-integration.
 	CreateHTTPIntegration(ctx context.Context, in *HTTPIntegration, opts ...grpc.CallOption) (*EmptyResponse, error)
 	// GetHTTPIntegration returns the HTTP application-itegration.
@@ -1018,51 +720,6 @@ func (c *applicationClient) List(ctx context.Context, in *ListApplicationRequest
 	return out, nil
 }
 
-func (c *applicationClient) ListUsers(ctx context.Context, in *ListApplicationUsersRequest, opts ...grpc.CallOption) (*ListApplicationUsersResponse, error) {
-	out := new(ListApplicationUsersResponse)
-	err := grpc.Invoke(ctx, "/api.Application/ListUsers", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *applicationClient) AddUser(ctx context.Context, in *AddApplicationUserRequest, opts ...grpc.CallOption) (*EmptyApplicationUserResponse, error) {
-	out := new(EmptyApplicationUserResponse)
-	err := grpc.Invoke(ctx, "/api.Application/AddUser", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *applicationClient) GetUser(ctx context.Context, in *ApplicationUserRequest, opts ...grpc.CallOption) (*GetApplicationUserResponse, error) {
-	out := new(GetApplicationUserResponse)
-	err := grpc.Invoke(ctx, "/api.Application/GetUser", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *applicationClient) UpdateUser(ctx context.Context, in *UpdateApplicationUserRequest, opts ...grpc.CallOption) (*EmptyApplicationUserResponse, error) {
-	out := new(EmptyApplicationUserResponse)
-	err := grpc.Invoke(ctx, "/api.Application/UpdateUser", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *applicationClient) DeleteUser(ctx context.Context, in *ApplicationUserRequest, opts ...grpc.CallOption) (*EmptyApplicationUserResponse, error) {
-	out := new(EmptyApplicationUserResponse)
-	err := grpc.Invoke(ctx, "/api.Application/DeleteUser", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *applicationClient) CreateHTTPIntegration(ctx context.Context, in *HTTPIntegration, opts ...grpc.CallOption) (*EmptyResponse, error) {
 	out := new(EmptyResponse)
 	err := grpc.Invoke(ctx, "/api.Application/CreateHTTPIntegration", in, out, c.cc, opts...)
@@ -1121,16 +778,6 @@ type ApplicationServer interface {
 	Delete(context.Context, *DeleteApplicationRequest) (*DeleteApplicationResponse, error)
 	// List lists the available applications.
 	List(context.Context, *ListApplicationRequest) (*ListApplicationResponse, error)
-	// ListUsers lists the users for an application.
-	ListUsers(context.Context, *ListApplicationUsersRequest) (*ListApplicationUsersResponse, error)
-	// AddUser adds a user to an application.
-	AddUser(context.Context, *AddApplicationUserRequest) (*EmptyApplicationUserResponse, error)
-	// GetUser gets the user that is associated with the application.
-	GetUser(context.Context, *ApplicationUserRequest) (*GetApplicationUserResponse, error)
-	// UpdateUser sets the user's access to the associated application.
-	UpdateUser(context.Context, *UpdateApplicationUserRequest) (*EmptyApplicationUserResponse, error)
-	// DeleteUser deletes the user's access to the associated application.
-	DeleteUser(context.Context, *ApplicationUserRequest) (*EmptyApplicationUserResponse, error)
 	// CreateHTTPIntegration creates an HTTP application-integration.
 	CreateHTTPIntegration(context.Context, *HTTPIntegration) (*EmptyResponse, error)
 	// GetHTTPIntegration returns the HTTP application-itegration.
@@ -1233,96 +880,6 @@ func _Application_List_Handler(srv interface{}, ctx context.Context, dec func(in
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ApplicationServer).List(ctx, req.(*ListApplicationRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Application_ListUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListApplicationUsersRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ApplicationServer).ListUsers(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.Application/ListUsers",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ApplicationServer).ListUsers(ctx, req.(*ListApplicationUsersRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Application_AddUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AddApplicationUserRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ApplicationServer).AddUser(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.Application/AddUser",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ApplicationServer).AddUser(ctx, req.(*AddApplicationUserRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Application_GetUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ApplicationUserRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ApplicationServer).GetUser(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.Application/GetUser",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ApplicationServer).GetUser(ctx, req.(*ApplicationUserRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Application_UpdateUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateApplicationUserRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ApplicationServer).UpdateUser(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.Application/UpdateUser",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ApplicationServer).UpdateUser(ctx, req.(*UpdateApplicationUserRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Application_DeleteUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ApplicationUserRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ApplicationServer).DeleteUser(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.Application/DeleteUser",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ApplicationServer).DeleteUser(ctx, req.(*ApplicationUserRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1442,26 +999,6 @@ var _Application_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Application_List_Handler,
 		},
 		{
-			MethodName: "ListUsers",
-			Handler:    _Application_ListUsers_Handler,
-		},
-		{
-			MethodName: "AddUser",
-			Handler:    _Application_AddUser_Handler,
-		},
-		{
-			MethodName: "GetUser",
-			Handler:    _Application_GetUser_Handler,
-		},
-		{
-			MethodName: "UpdateUser",
-			Handler:    _Application_UpdateUser_Handler,
-		},
-		{
-			MethodName: "DeleteUser",
-			Handler:    _Application_DeleteUser_Handler,
-		},
-		{
 			MethodName: "CreateHTTPIntegration",
 			Handler:    _Application_CreateHTTPIntegration_Handler,
 		},
@@ -1489,81 +1026,61 @@ var _Application_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("application.proto", fileDescriptor1) }
 
 var fileDescriptor1 = []byte{
-	// 1210 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x58, 0x4f, 0x73, 0xdb, 0x44,
-	0x14, 0xc7, 0x56, 0xfc, 0xef, 0xa5, 0x49, 0xd3, 0x6d, 0x62, 0x14, 0xc5, 0x04, 0x47, 0x50, 0x62,
-	0xdc, 0x69, 0x5c, 0x1c, 0x66, 0x98, 0xe1, 0x02, 0x21, 0x2e, 0x69, 0x86, 0x00, 0x1d, 0x4d, 0x33,
-	0x30, 0xc3, 0x9f, 0x61, 0x1b, 0x6d, 0xdc, 0x6d, 0x64, 0x49, 0x68, 0xe5, 0x34, 0x69, 0xe8, 0x85,
-	0xe1, 0xc6, 0x91, 0x03, 0x9f, 0x80, 0xe1, 0x03, 0x71, 0xe3, 0xcc, 0x07, 0x61, 0xf6, 0x8f, 0x6d,
-	0x45, 0x5e, 0x39, 0x2a, 0xe5, 0xc0, 0x81, 0x9b, 0x77, 0xdf, 0xdb, 0xf7, 0x7b, 0xbf, 0xf7, 0x7b,
-	0xfb, 0x56, 0x63, 0xb8, 0x81, 0xc3, 0xd0, 0xa3, 0x47, 0x38, 0xa6, 0x81, 0xbf, 0x15, 0x46, 0x41,
-	0x1c, 0x20, 0x03, 0x87, 0xd4, 0x6a, 0xf4, 0x83, 0xa0, 0xef, 0x91, 0x0e, 0x0e, 0x69, 0x07, 0xfb,
-	0x7e, 0x10, 0x0b, 0x0f, 0x26, 0x5d, 0xac, 0x6b, 0x47, 0xc1, 0x60, 0x30, 0x3a, 0x60, 0xff, 0x6a,
-	0x80, 0xb9, 0x1b, 0x11, 0x1c, 0x93, 0x9d, 0x49, 0x30, 0x87, 0x7c, 0x3f, 0x24, 0x2c, 0x46, 0x08,
-	0xe6, 0x7c, 0x3c, 0x20, 0x66, 0xa1, 0x59, 0x68, 0xd5, 0x1c, 0xf1, 0x1b, 0x35, 0x61, 0xde, 0x25,
-	0xec, 0x28, 0xa2, 0x21, 0xf7, 0x34, 0x8b, 0xc2, 0x94, 0xdc, 0x42, 0x26, 0x54, 0xa2, 0xb3, 0x1e,
-	0xf1, 0xf0, 0xb9, 0x69, 0x34, 0x0b, 0xad, 0x05, 0x67, 0xb4, 0xe4, 0x67, 0xa3, 0xb3, 0x77, 0x7a,
-	0xce, 0xe7, 0xc7, 0xc7, 0x8c, 0xc4, 0xe6, 0x9c, 0xb0, 0x26, 0xb7, 0xd0, 0xdb, 0x50, 0x8d, 0xce,
-	0xbe, 0xa0, 0xbe, 0x1b, 0x3c, 0x35, 0xcb, 0xcd, 0x42, 0x6b, 0xb1, 0xbb, 0xb0, 0x85, 0x43, 0xba,
-	0xe5, 0x7c, 0x29, 0x37, 0x9d, 0xb1, 0x19, 0x2d, 0x43, 0x29, 0x3a, 0xeb, 0xf6, 0x1c, 0xb3, 0x22,
-	0xc2, 0xc8, 0x05, 0x6a, 0x40, 0x2d, 0x22, 0x1e, 0x3e, 0xfb, 0x78, 0xd7, 0x8f, 0xcd, 0x6a, 0xb3,
-	0xd0, 0xaa, 0x3a, 0x93, 0x0d, 0x9e, 0x00, 0x76, 0xa3, 0x7d, 0x3f, 0x26, 0xd1, 0x29, 0xf6, 0xcc,
-	0x9a, 0x4c, 0x20, 0xb1, 0x85, 0xb6, 0x00, 0x51, 0x9f, 0xc5, 0xd8, 0xf3, 0x44, 0x25, 0x3e, 0xc5,
-	0x51, 0x9f, 0xfa, 0x26, 0x34, 0x0b, 0xad, 0x82, 0xa3, 0xb1, 0xf0, 0x2c, 0x28, 0xdb, 0xf9, 0xe8,
-	0x81, 0x39, 0x2f, 0xb0, 0xe4, 0x02, 0x59, 0x50, 0xa5, 0x6c, 0xd7, 0xc3, 0x8c, 0xed, 0x9a, 0xd7,
-	0x84, 0x61, 0xbc, 0x46, 0x6f, 0xc1, 0x62, 0x10, 0xf5, 0xb1, 0x4f, 0x9f, 0x89, 0x38, 0xfb, 0x3d,
-	0x73, 0xb1, 0x59, 0x68, 0x19, 0x4e, 0x6a, 0xd7, 0xbe, 0x0d, 0xab, 0x1a, 0x61, 0x58, 0x18, 0xf8,
-	0x8c, 0xa0, 0x45, 0x28, 0x52, 0x57, 0xe8, 0x62, 0x38, 0x45, 0xea, 0xda, 0x9b, 0xb0, 0xb2, 0x47,
-	0x62, 0x8d, 0x84, 0x69, 0xc7, 0xdf, 0x0c, 0xa8, 0xa7, 0x3d, 0xf5, 0x31, 0xc7, 0xea, 0x17, 0xb3,
-	0xd5, 0x37, 0x66, 0xaa, 0x3f, 0x37, 0x53, 0xfd, 0xd2, 0x6c, 0xf5, 0x2b, 0x39, 0xd5, 0xaf, 0x66,
-	0xaa, 0x5f, 0xbb, 0x42, 0x7d, 0xc8, 0xab, 0xfe, 0xfc, 0xd5, 0xea, 0x5f, 0xcb, 0x52, 0x7f, 0xe1,
-	0x1f, 0xaa, 0xff, 0xbb, 0x01, 0xe6, 0x61, 0xe8, 0xea, 0xef, 0xe5, 0xff, 0x4a, 0xfd, 0x87, 0x94,
-	0x5a, 0x83, 0x55, 0x8d, 0x50, 0xf2, 0x4e, 0xd9, 0x6d, 0x30, 0x7b, 0xc4, 0x23, 0x79, 0x54, 0xe4,
-	0x81, 0x34, 0xbe, 0x2a, 0x90, 0x0f, 0xf5, 0x03, 0xca, 0x74, 0x37, 0x7c, 0x19, 0x4a, 0x1e, 0x1d,
-	0xd0, 0x58, 0x45, 0x92, 0x0b, 0x54, 0x87, 0x72, 0x20, 0xd5, 0x2b, 0x8a, 0x6d, 0xb5, 0xd2, 0xb0,
-	0x32, 0xb4, 0xac, 0x7c, 0x78, 0x75, 0x0a, 0x4f, 0xcd, 0x89, 0x75, 0x80, 0x38, 0x88, 0xb1, 0xb7,
-	0x1b, 0x0c, 0xfd, 0x11, 0x6a, 0x62, 0x07, 0x6d, 0x43, 0x39, 0x22, 0x6c, 0xe8, 0x71, 0x68, 0xa3,
-	0x35, 0xdf, 0x5d, 0x13, 0x9d, 0xa1, 0x1f, 0x3a, 0x8e, 0x72, 0xb5, 0xbf, 0x82, 0xb5, 0x14, 0xde,
-	0x21, 0x23, 0x11, 0xcb, 0xea, 0xf8, 0x31, 0xe9, 0xa2, 0x9e, 0xb4, 0x91, 0x24, 0x6d, 0x3f, 0x02,
-	0xeb, 0x32, 0x3c, 0x8f, 0x9d, 0x39, 0xf7, 0x2c, 0xa8, 0x0e, 0x19, 0x89, 0x12, 0x37, 0x6a, 0xbc,
-	0xe6, 0x77, 0x86, 0xb2, 0x1d, 0x77, 0x40, 0xe5, 0x8d, 0xaa, 0x3a, 0xa3, 0xa5, 0xfd, 0x14, 0x1a,
-	0x7a, 0x02, 0x99, 0x55, 0x2b, 0x5d, 0xaa, 0xda, 0x7b, 0xa9, 0xaa, 0xbd, 0xae, 0xa9, 0x5a, 0x32,
-	0xed, 0x71, 0xe5, 0xbe, 0x81, 0xd5, 0x1d, 0xd7, 0x9d, 0xf2, 0xd2, 0xd7, 0xad, 0x0e, 0x65, 0xce,
-	0x65, 0xbf, 0x37, 0x6a, 0x0b, 0xb9, 0x9a, 0xc1, 0xeb, 0x43, 0xa8, 0xbf, 0x5c, 0x6c, 0xfb, 0x3b,
-	0x68, 0x4c, 0x5d, 0x90, 0x7f, 0x37, 0xc7, 0x75, 0x68, 0xdc, 0x1b, 0x84, 0xf1, 0x79, 0x46, 0xa9,
-	0xec, 0xeb, 0xb0, 0x20, 0xec, 0xe3, 0x8d, 0x0f, 0x60, 0xe5, 0xfe, 0xc3, 0x87, 0x0f, 0xf8, 0x34,
-	0xe9, 0x47, 0xc2, 0xff, 0x3e, 0xc1, 0x2e, 0x89, 0xd0, 0x12, 0x18, 0x27, 0xe4, 0x5c, 0x7d, 0xf0,
-	0xf0, 0x9f, 0xbc, 0xd3, 0x4e, 0xb1, 0x37, 0x1c, 0xb5, 0x82, 0x5c, 0xd8, 0x3f, 0x17, 0xe1, 0x7a,
-	0x2a, 0xc2, 0x14, 0x8f, 0x77, 0xa1, 0xf2, 0x58, 0x44, 0x65, 0x4a, 0x52, 0x4b, 0x48, 0xaa, 0x05,
-	0x76, 0x46, 0xae, 0x7c, 0x30, 0xba, 0x38, 0xc6, 0x87, 0xe1, 0xa1, 0x73, 0xa0, 0xa6, 0xf6, 0x64,
-	0x03, 0xdd, 0x85, 0x9b, 0x4f, 0x02, 0xea, 0x7f, 0x16, 0xc4, 0xf4, 0x78, 0xc4, 0xd4, 0x39, 0x10,
-	0xf3, 0xbb, 0xe6, 0xe8, 0x4c, 0x7c, 0x50, 0xe2, 0xa3, 0x93, 0xf4, 0x81, 0x92, 0x38, 0xa0, 0xb1,
-	0xa0, 0x2e, 0x2c, 0x93, 0x28, 0x0a, 0xa2, 0xf4, 0x89, 0xb2, 0x38, 0xa1, 0xb5, 0xf1, 0x4f, 0x95,
-	0x3d, 0x12, 0xa7, 0x88, 0x65, 0x8d, 0xb9, 0xf1, 0x48, 0xcc, 0xe1, 0xdb, 0x92, 0x53, 0x2f, 0x87,
-	0xe7, 0x3d, 0x39, 0xaf, 0x2e, 0x79, 0xaa, 0x9b, 0xd7, 0x86, 0xd2, 0x09, 0xf5, 0x5d, 0x66, 0x16,
-	0x9a, 0x46, 0x6b, 0xb1, 0xbb, 0x2c, 0x54, 0x48, 0x38, 0x7e, 0x42, 0x7d, 0xd7, 0x91, 0x2e, 0xed,
-	0x35, 0xb8, 0x9e, 0xb2, 0xa0, 0x2a, 0xcc, 0x71, 0x66, 0x4b, 0xaf, 0x74, 0xff, 0x5c, 0x80, 0xf9,
-	0x44, 0x8b, 0x21, 0x02, 0x65, 0xf9, 0x85, 0x86, 0x5e, 0x13, 0x31, 0xb3, 0xbe, 0xa3, 0xad, 0xf5,
-	0x2c, 0xb3, 0x6a, 0xc7, 0xc6, 0x8f, 0x7f, 0xfc, 0xf5, 0x4b, 0xb1, 0x6e, 0xdf, 0x90, 0x9f, 0xec,
-	0x13, 0x0f, 0xf6, 0x7e, 0xa1, 0x8d, 0xbe, 0x05, 0x63, 0x8f, 0xc4, 0xc8, 0xd2, 0x8e, 0x51, 0x09,
-	0x30, 0x6b, 0xc4, 0xda, 0xeb, 0x22, 0xba, 0x89, 0xea, 0x53, 0xd1, 0x3b, 0x17, 0xd4, 0x7d, 0x8e,
-	0x9e, 0x40, 0x59, 0xde, 0x4f, 0x45, 0x23, 0xeb, 0xb3, 0x43, 0xd1, 0xc8, 0x7e, 0xec, 0x36, 0x04,
-	0xd0, 0x9a, 0x95, 0x01, 0xc4, 0xb9, 0xf4, 0xa1, 0x2c, 0xc5, 0x57, 0x58, 0x59, 0x8f, 0xa3, 0xc2,
-	0xca, 0x7e, 0x0f, 0x15, 0xa9, 0x76, 0x16, 0xa9, 0xaf, 0x61, 0x8e, 0xf7, 0x03, 0x92, 0x95, 0xd1,
-	0x3f, 0x9d, 0x56, 0x43, 0x6f, 0x54, 0x10, 0xab, 0x02, 0xe2, 0x26, 0x9a, 0x56, 0x05, 0x9d, 0x42,
-	0x8d, 0x9f, 0x12, 0x13, 0x1e, 0x35, 0x75, 0x51, 0x92, 0xaf, 0x97, 0xb5, 0x31, 0xc3, 0x43, 0x81,
-	0xbd, 0x29, 0xc0, 0xd6, 0x51, 0x43, 0xcf, 0xa7, 0x33, 0x14, 0x50, 0x43, 0xa8, 0xec, 0xb8, 0x2e,
-	0x3f, 0x89, 0x64, 0x81, 0x32, 0x27, 0xbf, 0xc2, 0x9c, 0x39, 0x16, 0x37, 0x05, 0xe6, 0x86, 0x3d,
-	0x13, 0x93, 0xab, 0x76, 0x0a, 0x95, 0x3d, 0x22, 0xd8, 0xaa, 0x7a, 0x66, 0x60, 0x5e, 0xf5, 0x66,
-	0xd9, 0x77, 0x04, 0xe2, 0x26, 0xba, 0x35, 0x0b, 0xb1, 0x73, 0x21, 0x07, 0xfe, 0x73, 0xf4, 0x53,
-	0x01, 0x40, 0xb6, 0x9b, 0xc0, 0xde, 0xd0, 0xf7, 0xdf, 0x0b, 0xb2, 0xbe, 0x2b, 0x72, 0x68, 0x5b,
-	0xf9, 0x72, 0xe0, 0xf4, 0x2f, 0x00, 0x64, 0x23, 0x5e, 0x5d, 0x81, 0x1c, 0xf8, 0xaa, 0x06, 0xed,
-	0x9c, 0x35, 0x38, 0x85, 0x15, 0x39, 0x38, 0xd2, 0xcf, 0xcd, 0xb2, 0xee, 0x35, 0xb1, 0xd0, 0x24,
-	0x81, 0x31, 0xe2, 0xb6, 0x40, 0xbc, 0x63, 0xb7, 0x32, 0x10, 0xe9, 0xe4, 0x3c, 0xeb, 0x3c, 0x8e,
-	0xe3, 0x90, 0x93, 0xfe, 0x01, 0xd0, 0xf4, 0x4c, 0x57, 0x5d, 0x97, 0x39, 0xec, 0x2d, 0x6d, 0x52,
-	0xa3, 0x92, 0xa3, 0xdc, 0x09, 0x70, 0xd6, 0x52, 0xe7, 0x97, 0x66, 0x6d, 0xbd, 0x20, 0xeb, 0x15,
-	0x29, 0x75, 0x1a, 0x37, 0x39, 0xae, 0x34, 0xbc, 0x75, 0x09, 0x28, 0xd6, 0xed, 0xfc, 0xac, 0x9f,
-	0xc1, 0x52, 0xea, 0x11, 0x63, 0x89, 0x01, 0xa6, 0x81, 0x6d, 0xe8, 0x8d, 0x2a, 0x81, 0xdb, 0x22,
-	0x81, 0x5b, 0xe8, 0x8d, 0x1c, 0x09, 0x3c, 0x2a, 0x8b, 0xff, 0x83, 0xb6, 0xff, 0x0e, 0x00, 0x00,
-	0xff, 0xff, 0x30, 0xef, 0x64, 0x37, 0x55, 0x12, 0x00, 0x00,
+	// 884 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe4, 0x57, 0x4f, 0x6f, 0xe3, 0x44,
+	0x14, 0x27, 0x76, 0x1b, 0x76, 0x5f, 0xa1, 0x49, 0xa7, 0x49, 0x70, 0x9d, 0x10, 0x05, 0x23, 0x20,
+	0xf2, 0x8a, 0xa4, 0xca, 0x72, 0xe2, 0x82, 0x50, 0x53, 0x75, 0x23, 0x56, 0xab, 0x95, 0xd9, 0xde,
+	0x10, 0xd2, 0x10, 0x4f, 0xb2, 0xb3, 0x71, 0x3c, 0xc6, 0x9e, 0x54, 0x6a, 0x81, 0x0b, 0x57, 0x8e,
+	0x5c, 0xf8, 0x18, 0x7c, 0x02, 0xbe, 0x04, 0x1f, 0x80, 0x0b, 0x77, 0xbe, 0x02, 0x9a, 0x3f, 0x69,
+	0x1c, 0x67, 0x2c, 0x05, 0xc1, 0x01, 0xc4, 0x2d, 0x33, 0xef, 0xf7, 0xfe, 0xfe, 0xde, 0x7b, 0xe3,
+	0xc0, 0x09, 0x4e, 0x92, 0x88, 0x4e, 0x31, 0xa7, 0x2c, 0x1e, 0x24, 0x29, 0xe3, 0x0c, 0xd9, 0x38,
+	0xa1, 0x6e, 0x67, 0xce, 0xd8, 0x3c, 0x22, 0x43, 0x9c, 0xd0, 0x21, 0x8e, 0x63, 0xc6, 0x25, 0x22,
+	0x53, 0x10, 0xef, 0x67, 0x0b, 0x9c, 0x8b, 0x94, 0x60, 0x4e, 0x3e, 0xdd, 0xa8, 0x07, 0xe4, 0xeb,
+	0x15, 0xc9, 0x38, 0x42, 0x70, 0x10, 0xe3, 0x25, 0x71, 0x2a, 0xbd, 0x4a, 0xff, 0x61, 0x20, 0x7f,
+	0xa3, 0x1e, 0x1c, 0x85, 0x24, 0x9b, 0xa6, 0x34, 0x11, 0x48, 0xc7, 0x92, 0xa2, 0xfc, 0x15, 0x7a,
+	0x1f, 0x8e, 0x59, 0x3a, 0xc7, 0x31, 0xbd, 0x93, 0xc6, 0x26, 0x63, 0xe7, 0xb8, 0x57, 0xe9, 0xdb,
+	0x41, 0xe1, 0x16, 0xf9, 0x50, 0xcf, 0x48, 0x7a, 0x43, 0xa7, 0xe4, 0x79, 0xca, 0x66, 0x34, 0x22,
+	0x93, 0xb1, 0x53, 0x93, 0xe6, 0x76, 0xee, 0x91, 0x07, 0x6f, 0x24, 0xf8, 0x36, 0x62, 0x38, 0xbc,
+	0x60, 0x21, 0x99, 0x3a, 0x75, 0x89, 0xdb, 0xba, 0x43, 0x23, 0x68, 0xe8, 0xf3, 0x65, 0x3c, 0x65,
+	0x21, 0x49, 0x3f, 0x97, 0x21, 0x39, 0x27, 0x12, 0x6b, 0x94, 0xe5, 0x74, 0xc6, 0x24, 0xaf, 0x83,
+	0xb6, 0x74, 0xb6, 0x64, 0xde, 0x23, 0x38, 0x33, 0x54, 0x2c, 0x4b, 0x58, 0x9c, 0x11, 0x74, 0x0c,
+	0x16, 0x0d, 0x65, 0xc1, 0xec, 0xc0, 0xa2, 0xa1, 0xf7, 0x01, 0x34, 0xaf, 0x08, 0x37, 0xd4, 0xb6,
+	0x08, 0xfc, 0xc5, 0x82, 0x56, 0x11, 0x69, 0xb6, 0x79, 0x4f, 0x8b, 0x55, 0x4e, 0x8b, 0xfd, 0xff,
+	0xa3, 0xe5, 0x27, 0x0b, 0x9c, 0xeb, 0x24, 0x34, 0x77, 0xf2, 0x3f, 0x53, 0xc2, 0xff, 0x6a, 0x69,
+	0xda, 0x70, 0x66, 0xa8, 0x8c, 0xea, 0x2e, 0xcf, 0x07, 0x67, 0x4c, 0x22, 0xb2, 0x4f, 0xd9, 0x84,
+	0x21, 0x03, 0x56, 0x1b, 0x8a, 0xa1, 0xf5, 0x94, 0x66, 0xa6, 0x5e, 0x6f, 0xc0, 0x61, 0x44, 0x97,
+	0x94, 0x6b, 0x4b, 0xea, 0x80, 0x5a, 0x50, 0x65, 0xb3, 0x59, 0x46, 0xb8, 0x64, 0xc1, 0x0e, 0xf4,
+	0xc9, 0xd0, 0xa8, 0xb6, 0xa9, 0x51, 0xbd, 0xdf, 0x2a, 0x70, 0x9a, 0x73, 0x26, 0x7c, 0x4f, 0x38,
+	0x59, 0xfe, 0x8b, 0xc7, 0x65, 0x00, 0x68, 0xfb, 0xee, 0x99, 0x88, 0x4b, 0x75, 0x86, 0x41, 0xe2,
+	0x2d, 0xe0, 0xad, 0x9d, 0x8a, 0xea, 0x9d, 0xd0, 0x05, 0xe0, 0x8c, 0xe3, 0xe8, 0x82, 0xad, 0xe2,
+	0x75, 0x5d, 0x73, 0x37, 0xe8, 0x1c, 0xaa, 0x29, 0xc9, 0x56, 0x91, 0x28, 0xae, 0xdd, 0x3f, 0x1a,
+	0x39, 0x03, 0x9c, 0xd0, 0x81, 0xa1, 0x5c, 0x81, 0xc6, 0x79, 0x35, 0x78, 0xf3, 0x72, 0x99, 0xf0,
+	0xdb, 0x7b, 0x3e, 0x3f, 0x81, 0xe6, 0x93, 0x17, 0x2f, 0x9e, 0x4f, 0x62, 0x4e, 0xe6, 0xa9, 0xd4,
+	0x79, 0x42, 0x70, 0x48, 0x52, 0x54, 0x07, 0x7b, 0x41, 0x6e, 0xf5, 0xab, 0x20, 0x7e, 0x0a, 0x82,
+	0x6f, 0x70, 0xb4, 0x5a, 0xd7, 0x58, 0x1d, 0xbc, 0x1f, 0x2c, 0xa8, 0x15, 0x2c, 0xec, 0x90, 0xf3,
+	0x11, 0xbc, 0xfe, 0x52, 0x5a, 0xcd, 0x74, 0xa0, 0xae, 0x0c, 0xd4, 0xe8, 0x38, 0x58, 0x43, 0x51,
+	0x07, 0x1e, 0x86, 0x98, 0xe3, 0xeb, 0xe4, 0x3a, 0x78, 0xaa, 0xc9, 0xdb, 0x5c, 0xa0, 0x73, 0x38,
+	0x7d, 0xc5, 0x68, 0xfc, 0x8c, 0x71, 0x3a, 0xd3, 0xd9, 0x0a, 0xdc, 0x81, 0xc4, 0x99, 0x44, 0x82,
+	0x18, 0x3c, 0x5d, 0x14, 0x15, 0x0e, 0x15, 0x31, 0xbb, 0x12, 0x31, 0x84, 0x24, 0x4d, 0x59, 0x5a,
+	0xd4, 0xa8, 0xaa, 0x21, 0x34, 0xc9, 0xc4, 0xb3, 0x71, 0x45, 0x78, 0x21, 0xb1, 0xb2, 0x41, 0xbb,
+	0x1f, 0xca, 0x3d, 0xb0, 0x7d, 0x35, 0x77, 0x7b, 0x20, 0x2f, 0x55, 0x3f, 0x6d, 0x21, 0x75, 0x3f,
+	0xf9, 0x70, 0xb8, 0xa0, 0x71, 0x98, 0x39, 0x95, 0x9e, 0xdd, 0x3f, 0x1e, 0x35, 0x24, 0x0b, 0x39,
+	0xe0, 0x67, 0x34, 0x0e, 0x03, 0x05, 0xf1, 0xdb, 0x50, 0x2b, 0x48, 0xd0, 0x03, 0x38, 0x10, 0x99,
+	0xd5, 0x5f, 0x1b, 0xfd, 0xf1, 0x00, 0x8e, 0x72, 0x6d, 0x86, 0x08, 0x54, 0xd5, 0x6b, 0x89, 0xde,
+	0x96, 0x36, 0xcb, 0x3e, 0x36, 0xdc, 0x6e, 0x99, 0x58, 0xb7, 0x63, 0xe7, 0xfb, 0x5f, 0x7f, 0xff,
+	0xd1, 0x6a, 0x79, 0x27, 0xea, 0x4b, 0x66, 0x83, 0xc8, 0x3e, 0xae, 0xf8, 0xe8, 0x4b, 0xb0, 0xaf,
+	0x08, 0x47, 0xaa, 0x7b, 0x8c, 0x2f, 0xae, 0xdb, 0x36, 0xca, 0xb4, 0xf5, 0xae, 0xb4, 0xee, 0xa0,
+	0xd6, 0x8e, 0xf5, 0xe1, 0x37, 0x34, 0xfc, 0x0e, 0xbd, 0x82, 0xaa, 0x5a, 0xa1, 0x3a, 0x8d, 0xb2,
+	0x97, 0x46, 0xa7, 0x51, 0xbe, 0x6e, 0xdf, 0x91, 0x8e, 0xda, 0x6e, 0x89, 0x23, 0x91, 0xcb, 0x1c,
+	0xaa, 0x8a, 0x7c, 0xed, 0xab, 0x6c, 0x3d, 0x6b, 0x5f, 0xe5, 0x1b, 0x59, 0x27, 0xe5, 0x97, 0x25,
+	0xf5, 0x05, 0x1c, 0x88, 0x7e, 0x40, 0xaa, 0x32, 0xe6, 0xe5, 0xed, 0x76, 0xcc, 0x42, 0xed, 0xe2,
+	0x4c, 0xba, 0x38, 0x45, 0xbb, 0xac, 0xa0, 0x1b, 0x68, 0x2a, 0x36, 0x8b, 0x3b, 0xa0, 0x61, 0x1a,
+	0x71, 0x17, 0xc9, 0xdb, 0xed, 0x15, 0xf4, 0x58, 0x5a, 0xff, 0xd0, 0xeb, 0x9b, 0x13, 0x18, 0xd2,
+	0x8d, 0x7e, 0x36, 0x7c, 0xc9, 0x79, 0x22, 0xca, 0xf7, 0x2d, 0xa0, 0xdd, 0x41, 0x43, 0xdd, 0x35,
+	0xfb, 0xe6, 0x09, 0x74, 0x8d, 0x41, 0x79, 0xe7, 0x32, 0x00, 0x1f, 0xed, 0x1d, 0x80, 0xc8, 0x5a,
+	0x91, 0xff, 0xb7, 0xb3, 0x76, 0xff, 0x62, 0xd6, 0x4d, 0xd5, 0x08, 0x45, 0xbf, 0xf9, 0x1e, 0x32,
+	0xe4, 0x6d, 0x0a, 0x40, 0x67, 0xed, 0xef, 0x9f, 0xf5, 0x1d, 0xd4, 0x0b, 0x9b, 0x25, 0xcb, 0x75,
+	0x95, 0xc1, 0x6d, 0xc7, 0x2c, 0xd4, 0x01, 0x3c, 0x92, 0x01, 0xbc, 0x87, 0xde, 0xdd, 0x23, 0x80,
+	0xaf, 0xaa, 0xf2, 0x9f, 0xcc, 0xe3, 0x3f, 0x03, 0x00, 0x00, 0xff, 0xff, 0x0d, 0x18, 0x63, 0xc2,
+	0x01, 0x0d, 0x00, 0x00,
 }

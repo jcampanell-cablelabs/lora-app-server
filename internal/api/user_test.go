@@ -3,7 +3,10 @@ package api
 import (
 	"testing"
 
+	"github.com/brocaar/loraserver/api/ns"
+
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/urfave/cli"
 	"golang.org/x/net/context"
 
 	pb "github.com/brocaar/lora-app-server/api"
@@ -14,46 +17,27 @@ import (
 
 func TestUserAPI(t *testing.T) {
 	conf := test.GetConfig()
+	db, err := storage.OpenDatabase(conf.PostgresDSN)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	common.DB = db
 
 	Convey("Given a clean database and api instance", t, func() {
-		db, err := storage.OpenDatabase(conf.PostgresDSN)
-		So(err, ShouldBeNil)
-		common.DB = db
 		test.MustResetDB(common.DB)
+
+		nsClient := test.NewNetworkServerClient()
+		nsClient.GetDeviceProfileResponse = ns.GetDeviceProfileResponse{
+			DeviceProfile: &ns.DeviceProfile{},
+		}
+
+		common.NetworkServerPool = test.NewNetworkServerPool(nsClient)
 
 		ctx := context.Background()
 		validator := &TestValidator{}
 		api := NewUserAPI(validator)
-		apiInternal := NewInternalUserAPI(validator)
-
-		Convey("When creating an user assigned to an application", func() {
-			org := storage.Organization{
-				Name: "test-org",
-			}
-			So(storage.CreateOrganization(common.DB, &org), ShouldBeNil)
-			app := storage.Application{
-				Name:           "test-app",
-				OrganizationID: org.ID,
-			}
-			So(storage.CreateApplication(common.DB, &app), ShouldBeNil)
-
-			createReq := pb.AddUserRequest{
-				Username: "testuser",
-				Password: "testpasswd",
-				Applications: []*pb.AddUserApplication{
-					{ApplicationID: app.ID, IsAdmin: true},
-				},
-			}
-			createResp, err := api.Create(ctx, &createReq)
-			So(err, ShouldBeNil)
-			So(createResp.Id, ShouldBeGreaterThan, 0)
-
-			users, err := storage.GetApplicationUsers(common.DB, app.ID, 10, 0)
-			So(err, ShouldBeNil)
-			So(users, ShouldHaveLength, 1)
-			So(users[0].UserID, ShouldEqual, createResp.Id)
-			So(users[0].IsAdmin, ShouldBeTrue)
-		})
+		apiInternal := NewInternalUserAPI(validator, &cli.Context{})
 
 		Convey("When creating an user assigned to an organization", func() {
 			org := storage.Organization{
@@ -67,6 +51,7 @@ func TestUserAPI(t *testing.T) {
 				Organizations: []*pb.AddUserOrganization{
 					{OrganizationID: org.ID, IsAdmin: true},
 				},
+				Email: "foo@bar.com",
 			}
 			createResp, err := api.Create(ctx, &createReq)
 			So(err, ShouldBeNil)
@@ -86,6 +71,7 @@ func TestUserAPI(t *testing.T) {
 				Password:   "pass^^ord",
 				IsAdmin:    true,
 				SessionTTL: 180,
+				Email:      "foo@bar.com",
 			}
 			createResp, err := api.Create(ctx, createReq)
 			So(err, ShouldBeNil)
@@ -101,6 +87,8 @@ func TestUserAPI(t *testing.T) {
 				So(user.Username, ShouldResemble, createReq.Username)
 				So(user.SessionTTL, ShouldResemble, createReq.SessionTTL)
 				So(user.IsAdmin, ShouldResemble, createReq.IsAdmin)
+				So(user.Email, ShouldEqual, createReq.Email)
+				So(user.Note, ShouldEqual, createReq.Note)
 
 				Convey("Then get all users returns 2 items (admin user already there)", func() {
 					users, err := api.List(ctx, &pb.ListUserRequest{
@@ -128,6 +116,7 @@ func TestUserAPI(t *testing.T) {
 						Username:   "anotheruser",
 						SessionTTL: 300,
 						IsAdmin:    false,
+						Email:      "bar@foo.com",
 					}
 					_, err := api.Update(ctx, updateUser)
 					So(err, ShouldBeNil)

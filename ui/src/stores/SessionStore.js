@@ -46,7 +46,7 @@ class SessionStore extends EventEmitter {
   getHeader() {
     if (this.getToken() !== "") {
       return {
-        "Grpc-Metadata-Authorization": this.getToken(),
+        "Grpc-Metadata-Authorization": "Bearer " + this.getToken(),
       }
     } else {
       return {}
@@ -54,27 +54,27 @@ class SessionStore extends EventEmitter {
   }
 
   getLogo() {
-      if ( this.branding ) {
-          return this.branding.logo;
+    if (this.branding) {
+        return this.branding.logo;
       } else {
-          return null;
-      }
+        return null;
+    }
   }
 
   getFooter() {
-      if ( this.branding ) {
-          return this.branding.footer;
+    if (this.branding) {
+        return this.branding.footer;
       } else {
-          return null;
-      }
+        return null;
+    }
   }
 
   getRegistration() {
-      if ( this.branding && ( this.getToken() === "") ) {
-          return this.branding.registration;
-      } else {
-          return null;
-      }
+    if (this.branding) {
+      return this.branding.registration;
+    } else {
+      return null;
+    }
   }
 
   login(login, callbackFunc) {
@@ -151,15 +151,6 @@ class SessionStore extends EventEmitter {
 
   isAdmin() {
     return this.user.isAdmin;
-  }
-
-  isApplicationAdmin(applicationID) {
-    for (let i = 0; i < this.applications.length; i++) {
-      if (Number(this.applications[i].applicationID) === Number(applicationID)) {
-        return this.applications[i].isAdmin;
-      }
-    }
-    return false;
   }
 
   isOrganizationAdmin(organizationID) {

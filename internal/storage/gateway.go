@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
@@ -8,9 +9,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/brocaar/loraserver/api/ns"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+
+	"github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lorawan"
 	"github.com/jmoiron/sqlx"
-	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -19,15 +24,16 @@ var gatewayNameRegexp = regexp.MustCompile(`^[\w-]+$`)
 
 // Gateway represents a gateway.
 type Gateway struct {
-	MAC            lorawan.EUI64 `db:"mac"`
-	CreatedAt      time.Time     `db:"created_at"`
-	UpdatedAt      time.Time     `db:"updated_at"`
-	Name           string        `db:"name"`
-	Description    string        `db:"description"`
-	OrganizationID int64         `db:"organization_id"`
-	Ping           bool          `db:"ping"`
-	LastPingID     *int64        `db:"last_ping_id"`
-	LastPingSentAt *time.Time    `db:"last_ping_sent_at"`
+	MAC             lorawan.EUI64 `db:"mac"`
+	CreatedAt       time.Time     `db:"created_at"`
+	UpdatedAt       time.Time     `db:"updated_at"`
+	Name            string        `db:"name"`
+	Description     string        `db:"description"`
+	OrganizationID  int64         `db:"organization_id"`
+	Ping            bool          `db:"ping"`
+	LastPingID      *int64        `db:"last_ping_id"`
+	LastPingSentAt  *time.Time    `db:"last_ping_sent_at"`
+	NetworkServerID int64         `db:"network_server_id"`
 }
 
 // GatewayPing represents a gateway ping.
@@ -89,6 +95,8 @@ func CreateGateway(db sqlx.Execer, gw *Gateway) error {
 	}
 
 	now := time.Now()
+	gw.CreatedAt = now
+	gw.UpdatedAt = now
 
 	_, err := db.Exec(`
 		insert into gateway (
@@ -100,36 +108,23 @@ func CreateGateway(db sqlx.Execer, gw *Gateway) error {
 			organization_id,
 			ping,
 			last_ping_id,
-			last_ping_sent_at
-		) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+			last_ping_sent_at,
+			network_server_id
+		) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 		gw.MAC[:],
-		now,
-		now,
+		gw.CreatedAt,
+		gw.UpdatedAt,
 		gw.Name,
 		gw.Description,
 		gw.OrganizationID,
 		gw.Ping,
 		gw.LastPingID,
 		gw.LastPingSentAt,
+		gw.NetworkServerID,
 	)
 	if err != nil {
-		switch err := err.(type) {
-		case *pq.Error:
-			switch err.Code.Name() {
-			case "unique_violation":
-				return ErrAlreadyExists
-			case "foreign_key_violation":
-				return ErrDoesNotExist
-			default:
-				return errors.Wrap(err, "insert error")
-			}
-		default:
-			return errors.Wrap(err, "insert error")
-		}
+		return handlePSQLError(Insert, err, "insert error")
 	}
-
-	gw.CreatedAt = now
-	gw.UpdatedAt = now
 
 	log.WithFields(log.Fields{
 		"mac":  gw.MAC,
@@ -154,7 +149,8 @@ func UpdateGateway(db sqlx.Execer, gw *Gateway) error {
 			organization_id = $5,
 			ping = $6,
 			last_ping_id = $7,
-			last_ping_sent_at = $8
+			last_ping_sent_at = $8,
+			network_server_id = $9
 		where
 			mac = $1`,
 		gw.MAC[:],
@@ -165,21 +161,10 @@ func UpdateGateway(db sqlx.Execer, gw *Gateway) error {
 		gw.Ping,
 		gw.LastPingID,
 		gw.LastPingSentAt,
+		gw.NetworkServerID,
 	)
 	if err != nil {
-		switch err := err.(type) {
-		case *pq.Error:
-			switch err.Code.Name() {
-			case "unique_violation":
-				return ErrAlreadyExists
-			case "foreign_key_violation":
-				return ErrDoesNotExist
-			default:
-				return errors.Wrap(err, "insert error")
-			}
-		default:
-			return errors.Wrap(err, "insert error")
-		}
+		return handlePSQLError(Update, err, "update error")
 	}
 	ra, err := res.RowsAffected()
 	if err != nil {
@@ -198,7 +183,12 @@ func UpdateGateway(db sqlx.Execer, gw *Gateway) error {
 }
 
 // DeleteGateway deletes the gateway matching the given MAC.
-func DeleteGateway(db sqlx.Execer, mac lorawan.EUI64) error {
+func DeleteGateway(db sqlx.Ext, mac lorawan.EUI64) error {
+	n, err := GetNetworkServerForGatewayMAC(db, mac)
+	if err != nil {
+		return errors.Wrap(err, "get network-server error")
+	}
+
 	res, err := db.Exec("delete from gateway where mac = $1", mac[:])
 	if err != nil {
 		return errors.Wrap(err, "delete error")
@@ -210,6 +200,19 @@ func DeleteGateway(db sqlx.Execer, mac lorawan.EUI64) error {
 	if ra == 0 {
 		return ErrDoesNotExist
 	}
+
+	nsClient, err := common.NetworkServerPool.Get(n.Server)
+	if err != nil {
+		return errors.Wrap(err, "get network-server client error")
+	}
+
+	_, err = nsClient.DeleteGateway(context.Background(), &ns.DeleteGatewayRequest{
+		Mac: mac[:],
+	})
+	if err != nil && grpc.Code(err) != codes.NotFound {
+		return errors.Wrap(err, "delete gateway error")
+	}
+
 	log.WithField("mac", mac).Info("gateway deleted")
 	return nil
 }
@@ -364,7 +367,7 @@ func CreateGatewayPing(db sqlx.Queryer, ping *GatewayPing) error {
 		ping.DR,
 	)
 	if err != nil {
-		return handlePSQLError(err, "insert error")
+		return handlePSQLError(Insert, err, "insert error")
 	}
 
 	log.WithFields(log.Fields{
@@ -382,7 +385,7 @@ func GetGatewayPing(db sqlx.Queryer, id int64) (GatewayPing, error) {
 	var ping GatewayPing
 	err := sqlx.Get(db, &ping, "select * from gateway_ping where id = $1", id)
 	if err != nil {
-		return ping, handlePSQLError(err, "select error")
+		return ping, handlePSQLError(Select, err, "select error")
 	}
 
 	return ping, nil
@@ -414,7 +417,26 @@ func CreateGatewayPingRX(db sqlx.Queryer, rx *GatewayPingRX) error {
 		rx.Altitude,
 	)
 	if err != nil {
-		return handlePSQLError(err, "insert error")
+		return handlePSQLError(Insert, err, "insert error")
+	}
+
+	return nil
+}
+
+// DeleteAllGatewaysForOrganizationID deletes all gateways for a given
+// organization id.
+func DeleteAllGatewaysForOrganizationID(db sqlx.Ext, organizationID int64) error {
+	var gws []Gateway
+	err := sqlx.Select(db, &gws, "select * from gateway where organization_id = $1", organizationID)
+	if err != nil {
+		return handlePSQLError(Select, err, "select error")
+	}
+
+	for _, gw := range gws {
+		err = DeleteGateway(db, gw.MAC)
+		if err != nil {
+			return errors.Wrap(err, "delete gateway error")
+		}
 	}
 
 	return nil
@@ -427,7 +449,7 @@ func GetGatewayPingRXForPingID(db sqlx.Queryer, pingID int64) ([]GatewayPingRX, 
 
 	err := sqlx.Select(db, &rx, "select * from gateway_ping_rx where ping_id = $1", pingID)
 	if err != nil {
-		return nil, handlePSQLError(err, "select error")
+		return nil, handlePSQLError(Select, err, "select error")
 	}
 
 	return rx, nil

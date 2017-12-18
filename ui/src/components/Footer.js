@@ -1,6 +1,5 @@
 import React, { Component } from 'react';
 
-import dispatcher from "../dispatcher";
 import SessionStore from "../stores/SessionStore";
 
 class Footer extends Component {
@@ -11,15 +10,17 @@ class Footer extends Component {
   constructor() {
     super();
     this.state = {
-      registration: SessionStore.getRegistration(),
-      footer: SessionStore.getFooter(),
+      footer: null,
     }
   }
 
-  componentWillMount() {
+  componentDidMount() {
+    this.setState({
+      footer: SessionStore.getFooter(),
+    });
+
     SessionStore.on("change", () => {
       this.setState({
-        registration: SessionStore.getRegistration(),
         footer: SessionStore.getFooter(),
       });
     });
@@ -27,10 +28,11 @@ class Footer extends Component {
 
   render() {
     return (
-      <div className="footer">
-          <div className="footerRegistration" dangerouslySetInnerHTML={{ __html: ( typeof(this.state.registration) === "undefined" ? "" : this.state.registration) }} />
-          <div className="footerRight" dangerouslySetInnerHTML={{ __html: ( typeof(this.state.registration) === "undefined" ? "" : this.state.footer) }} />
-      </div>
+      <footer className="footer">
+        <div className="container">
+          <p className="text-muted" dangerouslySetInnerHTML={{__html: this.state.footer}} />
+        </div>
+      </footer>
     );
   }
 }

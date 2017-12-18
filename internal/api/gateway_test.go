@@ -28,16 +28,23 @@ func TestGatewayAPI(t *testing.T) {
 		test.MustResetDB(common.DB)
 
 		nsClient := test.NewNetworkServerClient()
-		common.NetworkServer = nsClient
+		common.NetworkServerPool = test.NewNetworkServerPool(nsClient)
 
 		ctx := context.Background()
 		validator := &TestValidator{}
 		api := NewGatewayAPI(validator)
 
+		n := storage.NetworkServer{
+			Name:   "test-ns",
+			Server: "test-ns:1234",
+		}
+		So(storage.CreateNetworkServer(common.DB, &n), ShouldBeNil)
+
 		org := storage.Organization{
 			Name: "test-organization",
 		}
 		So(storage.CreateOrganization(common.DB, &org), ShouldBeNil)
+
 		org2 := storage.Organization{
 			Name: "test-organization-2",
 		}
@@ -58,28 +65,30 @@ func TestGatewayAPI(t *testing.T) {
 		}
 
 		getGatewayResponseAS := pb.GetGatewayResponse{
-			Mac:            "0102030405060708",
-			Name:           "test-gateway",
-			Description:    "test gateway",
-			Latitude:       1.1234,
-			Longitude:      1.1235,
-			Altitude:       5.5,
-			FirstSeenAt:    now.UTC().Add(2 * time.Second).Format(time.RFC3339Nano),
-			LastSeenAt:     now.UTC().Add(3 * time.Second).Format(time.RFC3339Nano),
-			OrganizationID: org.ID,
-			Ping:           true,
+			Mac:             "0102030405060708",
+			Name:            "test-gateway",
+			Description:     "test gateway",
+			Latitude:        1.1234,
+			Longitude:       1.1235,
+			Altitude:        5.5,
+			FirstSeenAt:     now.UTC().Add(2 * time.Second).Format(time.RFC3339Nano),
+			LastSeenAt:      now.UTC().Add(3 * time.Second).Format(time.RFC3339Nano),
+			OrganizationID:  org.ID,
+			Ping:            true,
+			NetworkServerID: n.ID,
 		}
 
 		Convey("When calling create", func() {
 			_, err := api.Create(ctx, &pb.CreateGatewayRequest{
-				Mac:            "0102030405060708",
-				Name:           "test-gateway",
-				Description:    "test gateway",
-				Latitude:       1.1234,
-				Longitude:      1.1235,
-				Altitude:       5.5,
-				OrganizationID: org.ID,
-				Ping:           true,
+				Mac:             "0102030405060708",
+				Name:            "test-gateway",
+				Description:     "test gateway",
+				Latitude:        1.1234,
+				Longitude:       1.1235,
+				Altitude:        5.5,
+				OrganizationID:  org.ID,
+				Ping:            true,
+				NetworkServerID: n.ID,
 			})
 			So(err, ShouldBeNil)
 			So(validator.ctx, ShouldResemble, ctx)
@@ -133,9 +142,10 @@ func TestGatewayAPI(t *testing.T) {
 				}
 				So(storage.CreateOrganization(common.DB, &org2), ShouldBeNil)
 				gw2 := storage.Gateway{
-					Name:           "test-gw-2",
-					MAC:            lorawan.EUI64{8, 7, 6, 5, 4, 3, 2, 1},
-					OrganizationID: org2.ID,
+					Name:            "test-gw-2",
+					MAC:             lorawan.EUI64{8, 7, 6, 5, 4, 3, 2, 1},
+					OrganizationID:  org2.ID,
+					NetworkServerID: n.ID,
 				}
 				So(storage.CreateGateway(common.DB, &gw2), ShouldBeNil)
 
@@ -152,7 +162,10 @@ func TestGatewayAPI(t *testing.T) {
 					})
 
 					Convey("Then gateways are only visible to users assigned to an organization", func() {
-						user := storage.User{Username: "testuser"}
+						user := storage.User{
+							Username: "testuser",
+							Email:    "foo@bar.com",
+						}
 						_, err := storage.CreateUser(common.DB, &user, "password123")
 						So(err, ShouldBeNil)
 						validator.returnIsAdmin = false
@@ -369,18 +382,20 @@ func TestGatewayAPI(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				gw2 := storage.Gateway{
-					OrganizationID: org.ID,
-					MAC:            lorawan.EUI64{2, 2, 3, 4, 5, 6, 7, 8},
-					Name:           "test-gw-2",
-					Description:    "test gw 2",
+					OrganizationID:  org.ID,
+					MAC:             lorawan.EUI64{2, 2, 3, 4, 5, 6, 7, 8},
+					Name:            "test-gw-2",
+					Description:     "test gw 2",
+					NetworkServerID: n.ID,
 				}
 				So(storage.CreateGateway(common.DB, &gw2), ShouldBeNil)
 
 				gw3 := storage.Gateway{
-					OrganizationID: org.ID,
-					MAC:            lorawan.EUI64{3, 2, 3, 4, 5, 6, 7, 8},
-					Name:           "test-gw-3",
-					Description:    "test gw 3",
+					OrganizationID:  org.ID,
+					MAC:             lorawan.EUI64{3, 2, 3, 4, 5, 6, 7, 8},
+					Name:            "test-gw-3",
+					Description:     "test gw 3",
+					NetworkServerID: n.ID,
 				}
 				So(storage.CreateGateway(common.DB, &gw3), ShouldBeNil)
 
@@ -463,8 +478,9 @@ func TestGatewayAPI(t *testing.T) {
 				}
 
 				resp, err := api.CreateChannelConfiguration(ctx, &pb.CreateChannelConfigurationRequest{
-					Name:     "test-config",
-					Channels: []int32{0, 1, 2},
+					Name:            "test-config",
+					Channels:        []int32{0, 1, 2},
+					NetworkServerID: n.ID,
 				})
 				So(err, ShouldBeNil)
 				So(validator.ctx, ShouldResemble, ctx)
@@ -495,7 +511,8 @@ func TestGatewayAPI(t *testing.T) {
 				}
 
 				resp, err := api.GetChannelConfiguration(ctx, &pb.GetChannelConfigurationRequest{
-					Id: 123,
+					Id:              123,
+					NetworkServerID: n.ID,
 				})
 				So(err, ShouldBeNil)
 				So(validator.ctx, ShouldResemble, ctx)
@@ -503,11 +520,12 @@ func TestGatewayAPI(t *testing.T) {
 
 				Convey("Then the expected request was made to the network-server", func() {
 					So(resp, ShouldResemble, &pb.GetChannelConfigurationResponse{
-						Id:        123,
-						Name:      "test-config",
-						Channels:  []int32{0, 1, 2},
-						CreatedAt: nowStr,
-						UpdatedAt: nowStr,
+						Id:              123,
+						Name:            "test-config",
+						Channels:        []int32{0, 1, 2},
+						CreatedAt:       nowStr,
+						UpdatedAt:       nowStr,
+						NetworkServerID: n.ID,
 					})
 					So(nsClient.GetChannelConfigurationChan, ShouldHaveLength, 1)
 					So(<-nsClient.GetChannelConfigurationChan, ShouldResemble, ns.GetChannelConfigurationRequest{
@@ -518,9 +536,10 @@ func TestGatewayAPI(t *testing.T) {
 
 			Convey("When calling UpdateChannelConfiguration", func() {
 				resp, err := api.UpdateChannelConfiguration(ctx, &pb.UpdateChannelConfigurationRequest{
-					Id:       123,
-					Name:     "updated-config",
-					Channels: []int32{0, 1},
+					Id:              123,
+					Name:            "updated-config",
+					Channels:        []int32{0, 1},
+					NetworkServerID: n.ID,
 				})
 				So(err, ShouldBeNil)
 				So(validator.ctx, ShouldResemble, ctx)
@@ -539,7 +558,8 @@ func TestGatewayAPI(t *testing.T) {
 
 			Convey("When calling DeleteChannelConfiguration", func() {
 				resp, err := api.DeleteChannelConfiguration(ctx, &pb.DeleteChannelConfigurationRequest{
-					Id: 123,
+					Id:              123,
+					NetworkServerID: n.ID,
 				})
 				So(err, ShouldBeNil)
 				So(validator.ctx, ShouldResemble, ctx)
@@ -571,7 +591,9 @@ func TestGatewayAPI(t *testing.T) {
 					},
 				}
 
-				resp, err := api.ListChannelConfigurations(ctx, &pb.ListChannelConfigurationsRequest{})
+				resp, err := api.ListChannelConfigurations(ctx, &pb.ListChannelConfigurationsRequest{
+					NetworkServerID: n.ID,
+				})
 				So(err, ShouldBeNil)
 				So(validator.ctx, ShouldResemble, ctx)
 				So(validator.validatorFuncs, ShouldHaveLength, 1)
@@ -580,11 +602,12 @@ func TestGatewayAPI(t *testing.T) {
 					So(resp, ShouldResemble, &pb.ListChannelConfigurationsResponse{
 						Result: []*pb.GetChannelConfigurationResponse{
 							{
-								Id:        123,
-								Name:      "test-config",
-								Channels:  []int32{0, 1, 2},
-								CreatedAt: nowStr,
-								UpdatedAt: nowStr,
+								Id:              123,
+								Name:            "test-config",
+								Channels:        []int32{0, 1, 2},
+								CreatedAt:       nowStr,
+								UpdatedAt:       nowStr,
+								NetworkServerID: n.ID,
 							},
 						},
 					})
@@ -605,6 +628,7 @@ func TestGatewayAPI(t *testing.T) {
 					BandWidth:              125,
 					BitRate:                50000,
 					SpreadFactors:          []int32{5},
+					NetworkServerID:        n.ID,
 				})
 				So(err, ShouldBeNil)
 				So(validator.ctx, ShouldResemble, ctx)
@@ -635,6 +659,7 @@ func TestGatewayAPI(t *testing.T) {
 					BandWidth:              125,
 					BitRate:                50000,
 					SpreadFactors:          []int32{5},
+					NetworkServerID:        n.ID,
 				})
 				So(err, ShouldBeNil)
 				So(validator.ctx, ShouldResemble, ctx)
@@ -657,7 +682,8 @@ func TestGatewayAPI(t *testing.T) {
 
 			Convey("When calling DeleteExtraChannel", func() {
 				resp, err := api.DeleteExtraChannel(ctx, &pb.DeleteExtraChannelRequest{
-					Id: 321,
+					Id:              321,
+					NetworkServerID: n.ID,
 				})
 				So(err, ShouldBeNil)
 				So(validator.ctx, ShouldResemble, ctx)
@@ -693,7 +719,8 @@ func TestGatewayAPI(t *testing.T) {
 				}
 
 				resp, err := api.GetExtraChannelsForChannelConfigurationID(ctx, &pb.GetExtraChannelsForChannelConfigurationIDRequest{
-					Id: 123,
+					Id:              123,
+					NetworkServerID: n.ID,
 				})
 				So(err, ShouldBeNil)
 				So(validator.ctx, ShouldResemble, ctx)

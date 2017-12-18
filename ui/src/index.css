@@ -112,25 +112,27 @@ input[type=number] {
 .map-legend ul li {
   font-weight: bold;
 }
-/* Navbar branding */
-.navbar-brand-logo {
-    display: inline;
-    max-height: 30px;
-    margin-right: 12px;
+
+/* sticky footer */
+/* http://getbootstrap.com/docs/3.3/examples/sticky-footer/sticky-footer.css */
+html {
+  position: relative;
+  min-height: 100%;
+}
+body {
+  /* Margin bottom by footer height */
+  margin-bottom: 60px;
 }
 
-/* Page footer */
 .footer {
-    font-size: 16px;
-    font-family: sans-serif;
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  /* Set the fixed height of the footer here */
+  height: 50px;
 }
 
-.footer .footerRegistration {
-    text-align: center;
-    width: 100%;
-}
-
-.footer .footerRight {
-    float: right;
-    margin-right: 32px;
+/* Fix react-select z-index for codemirror widget */
+.is-open {
+  z-index: 100 !important;
 }

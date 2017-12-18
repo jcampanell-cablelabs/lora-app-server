@@ -17,6 +17,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/brocaar/lora-app-server/internal/nsclient"
+	"github.com/brocaar/lora-app-server/internal/profilesmigrate"
+	"github.com/brocaar/lora-app-server/internal/queuemigrate"
+
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -39,9 +43,7 @@ import (
 	"github.com/brocaar/lora-app-server/internal/migrations"
 	"github.com/brocaar/lora-app-server/internal/static"
 	"github.com/brocaar/lora-app-server/internal/storage"
-	"github.com/brocaar/lora-app-server/internal/storage/gwmigrate"
 	"github.com/brocaar/loraserver/api/as"
-	"github.com/brocaar/loraserver/api/ns"
 )
 
 func init() {
@@ -66,9 +68,11 @@ func run(c *cli.Context) error {
 		setJWTSecret,
 		setHashIterations,
 		setDisableAssignExistingUsers,
+		setPublicASSettings,
 		handleDataDownPayloads,
 		startApplicationServerAPI,
 		startGatewayPing,
+		startJoinServerAPI,
 		startClientAPI(ctx),
 	}
 
@@ -136,26 +140,11 @@ func setHandler(c *cli.Context) error {
 }
 
 func setNetworkServerClient(c *cli.Context) error {
-	log.WithFields(log.Fields{
-		"server":   c.String("ns-server"),
-		"ca-cert":  c.String("ns-ca-cert"),
-		"tls-cert": c.String("ns-tls-cert"),
-		"tls-key":  c.String("ns-tls-key"),
-	}).Info("connecting to network-server api")
-	var nsOpts []grpc.DialOption
-	if c.String("ns-tls-cert") != "" && c.String("ns-tls-key") != "" {
-		nsOpts = append(nsOpts, grpc.WithTransportCredentials(
-			mustGetTransportCredentials(c.String("ns-tls-cert"), c.String("ns-tls-key"), c.String("ns-ca-cert"), false),
-		))
-	} else {
-		nsOpts = append(nsOpts, grpc.WithInsecure())
-	}
-
-	nsConn, err := grpc.Dial(c.String("ns-server"), nsOpts...)
-	if err != nil {
-		return errors.Wrap(err, "network-server dial error")
-	}
-	common.NetworkServer = ns.NewNetworkServerClient(nsConn)
+	common.NetworkServerPool = nsclient.NewPool(
+		c.String("ns-ca-cert"),
+		c.String("ns-tls-cert"),
+		c.String("ns-tls-key"),
+	)
 
 	return nil
 }
@@ -173,10 +162,24 @@ func runDatabaseMigrations(c *cli.Context) error {
 			return errors.Wrap(err, "applying migrations error")
 		}
 		log.WithField("count", n).Info("migrations applied")
-	}
 
-	if err := gwmigrate.MigrateGateways(); err != nil {
-		log.Fatalf("migrate gateway data error: %s", err)
+		for {
+			if err := profilesmigrate.StartProfilesMigration(c.String("ns-server")); err != nil {
+				log.WithError(err).Error("profiles migration failed")
+				time.Sleep(time.Second * 2)
+				continue
+			}
+			break
+		}
+
+		for {
+			if err := queuemigrate.StartDeviceQueueMigration(); err != nil {
+				log.WithError(err).Error("device-queue migration failed")
+				time.Sleep(time.Second * 2)
+				continue
+			}
+			break
+		}
 	}
 
 	return nil
@@ -194,6 +197,13 @@ func setHashIterations(c *cli.Context) error {
 
 func setDisableAssignExistingUsers(c *cli.Context) error {
 	auth.DisableAssignExistingUsers = c.Bool("disable-assign-existing-users")
+	return nil
+}
+
+func setPublicASSettings(c *cli.Context) error {
+	// TODO: get from client-side certificate in the future?
+	common.ApplicationServerID = c.String("as-public-id")
+	common.ApplicationServerServer = c.String("as-public-server")
 	return nil
 }
 
@@ -232,6 +242,52 @@ func startGatewayPing(c *cli.Context) error {
 	}
 
 	go gwping.SendPingLoop()
+
+	return nil
+}
+
+func startJoinServerAPI(c *cli.Context) error {
+	log.WithFields(log.Fields{
+		"bind":     c.String("js-bind"),
+		"ca_cert":  c.String("js-ca-cert"),
+		"tls_cert": c.String("js-tls-cert"),
+		"tls_key":  c.String("js-tls-key"),
+	}).Info("starting join-server api")
+
+	server := http.Server{
+		Handler: api.NewJoinServerAPI(),
+		Addr:    c.String("js-bind"),
+	}
+
+	if c.String("js-ca-cert") != "" {
+		caCert, err := ioutil.ReadFile(c.String("js-ca-cert"))
+		if err != nil {
+			return errors.Wrap(err, "read ca certificate error")
+		}
+
+		caCertPool := x509.NewCertPool()
+		if !caCertPool.AppendCertsFromPEM(caCert) {
+			return errors.New("append ca certificate error")
+		}
+
+		server.TLSConfig = &tls.Config{
+			ClientCAs:  caCertPool,
+			ClientAuth: tls.RequireAndVerifyClientCert,
+		}
+	}
+
+	if c.String("js-tls-cert") == "" && c.String("js-tls-key") == "" {
+		go func() {
+			err := server.ListenAndServe()
+			log.WithError(err).Error("join-server api error")
+		}()
+	} else {
+		go func() {
+			err := server.ListenAndServeTLS(c.String("js-tls-cert"), c.String("js-tls-key"))
+			log.WithError(err).Error("join-server api error")
+		}()
+	}
+
 	return nil
 }
 
@@ -247,12 +303,15 @@ func startClientAPI(ctx context.Context) func(*cli.Context) error {
 
 		clientAPIHandler := grpc.NewServer()
 		pb.RegisterApplicationServer(clientAPIHandler, api.NewApplicationAPI(validator))
-		pb.RegisterDownlinkQueueServer(clientAPIHandler, api.NewDownlinkQueueAPI(validator))
-		pb.RegisterNodeServer(clientAPIHandler, api.NewNodeAPI(validator))
+		pb.RegisterDeviceQueueServer(clientAPIHandler, api.NewDeviceQueueAPI(validator))
+		pb.RegisterDeviceServer(clientAPIHandler, api.NewDeviceAPI(validator))
 		pb.RegisterUserServer(clientAPIHandler, api.NewUserAPI(validator))
 		pb.RegisterInternalServer(clientAPIHandler, api.NewInternalUserAPI(validator, c))
 		pb.RegisterGatewayServer(clientAPIHandler, api.NewGatewayAPI(validator))
 		pb.RegisterOrganizationServer(clientAPIHandler, api.NewOrganizationAPI(validator))
+		pb.RegisterNetworkServerServer(clientAPIHandler, api.NewNetworkServerAPI(validator))
+		pb.RegisterServiceProfileServiceServer(clientAPIHandler, api.NewServiceProfileServiceAPI(validator))
+		pb.RegisterDeviceProfileServiceServer(clientAPIHandler, api.NewDeviceProfileServiceAPI(validator))
 
 		// setup the client http interface variable
 		// we need to start the gRPC service first, as it is used by the
@@ -377,10 +436,10 @@ func getJSONGateway(ctx context.Context, c *cli.Context) (http.Handler, error) {
 	if err := pb.RegisterApplicationHandlerFromEndpoint(ctx, mux, apiEndpoint, grpcDialOpts); err != nil {
 		return nil, errors.Wrap(err, "register application handler error")
 	}
-	if err := pb.RegisterDownlinkQueueHandlerFromEndpoint(ctx, mux, apiEndpoint, grpcDialOpts); err != nil {
+	if err := pb.RegisterDeviceQueueHandlerFromEndpoint(ctx, mux, apiEndpoint, grpcDialOpts); err != nil {
 		return nil, errors.Wrap(err, "register downlink queue handler error")
 	}
-	if err := pb.RegisterNodeHandlerFromEndpoint(ctx, mux, apiEndpoint, grpcDialOpts); err != nil {
+	if err := pb.RegisterDeviceHandlerFromEndpoint(ctx, mux, apiEndpoint, grpcDialOpts); err != nil {
 		return nil, errors.Wrap(err, "register node handler error")
 	}
 	if err := pb.RegisterUserHandlerFromEndpoint(ctx, mux, apiEndpoint, grpcDialOpts); err != nil {
@@ -394,6 +453,15 @@ func getJSONGateway(ctx context.Context, c *cli.Context) (http.Handler, error) {
 	}
 	if err := pb.RegisterOrganizationHandlerFromEndpoint(ctx, mux, apiEndpoint, grpcDialOpts); err != nil {
 		return nil, errors.Wrap(err, "register organization handler error")
+	}
+	if err := pb.RegisterNetworkServerHandlerFromEndpoint(ctx, mux, apiEndpoint, grpcDialOpts); err != nil {
+		return nil, errors.Wrap(err, "register network-server handler error")
+	}
+	if err := pb.RegisterServiceProfileServiceHandlerFromEndpoint(ctx, mux, apiEndpoint, grpcDialOpts); err != nil {
+		return nil, errors.Wrap(err, "register service-profile handler error")
+	}
+	if err := pb.RegisterDeviceProfileServiceHandlerFromEndpoint(ctx, mux, apiEndpoint, grpcDialOpts); err != nil {
+		return nil, errors.Wrap(err, "register device-profile handler error")
 	}
 
 	return mux, nil
@@ -480,6 +548,24 @@ func main() {
 			EnvVar: "MQTT_CA_CERT",
 		},
 		cli.StringFlag{
+			Name:   "as-public-server",
+			Usage:  "ip:port of the application-server api (used by LoRa Server to connect back to LoRa App Server)",
+			Value:  "localhost:8001",
+			EnvVar: "AS_PUBLIC_SERVER",
+		},
+		cli.StringFlag{
+			Name:   "as-public-id",
+			Usage:  "random uuid defining the id of the application-server installation (used by LoRa Server as routing-profile id)",
+			Value:  "6d5db27e-4ce2-4b2b-b5d7-91f069397978",
+			EnvVar: "AS_PUBLIC_ID",
+		},
+		cli.StringFlag{
+			Name:   "bind",
+			Usage:  "ip:port to bind the api server",
+			Value:  "0.0.0.0:8001",
+			EnvVar: "BIND",
+		},
+		cli.StringFlag{
 			Name:   "ca-cert",
 			Usage:  "ca certificate used by the api server (optional)",
 			EnvVar: "CA_CERT",
@@ -493,12 +579,6 @@ func main() {
 			Name:   "tls-key",
 			Usage:  "tls key used by the api server (optional)",
 			EnvVar: "TLS_KEY",
-		},
-		cli.StringFlag{
-			Name:   "bind",
-			Usage:  "ip:port to bind the api server",
-			Value:  "0.0.0.0:8001",
-			EnvVar: "BIND",
 		},
 		cli.StringFlag{
 			Name:   "http-bind",
@@ -520,12 +600,6 @@ func main() {
 			Name:   "jwt-secret",
 			Usage:  "JWT secret used for api authentication / authorization",
 			EnvVar: "JWT_SECRET",
-		},
-		cli.StringFlag{
-			Name:   "ns-server",
-			Usage:  "hostname:port of the network-server api server",
-			Value:  "127.0.0.1:8000",
-			EnvVar: "NS_SERVER",
 		},
 		cli.StringFlag{
 			Name:   "ns-ca-cert",
@@ -594,6 +668,52 @@ func main() {
 			Name:   "branding-registration",
 			Usage:  "when set, this html is inserted onto the login page, under the login area",
 			EnvVar: "BRANDING_REGISTRATION",
+		},
+		cli.StringFlag{
+			Name:   "branding-header",
+			Usage:  "when set, this html is inserted into the header of the ui, before \"LoRa Server\"",
+			EnvVar: "BRANDING_HEADER",
+			Hidden: true,
+		},
+		cli.StringFlag{
+			Name:   "branding-footer",
+			Usage:  "when set, this html is inserted as a footer of the ui pages",
+			EnvVar: "BRANDING_FOOTER",
+			Hidden: true,
+		},
+		cli.StringFlag{
+			Name:   "branding-registration",
+			Usage:  "when set, this html is inserted onto the login page, under the login area",
+			EnvVar: "BRANDING_REGISTRATION",
+			Hidden: true,
+		},
+		cli.StringFlag{
+			Name:   "js-bind",
+			Usage:  "ip:port to bind the join-server api interface to",
+			Value:  "0.0.0.0:8003",
+			EnvVar: "JS_BIND",
+		},
+		cli.StringFlag{
+			Name:   "js-ca-cert",
+			Usage:  "ca certificate used by the join-server api server (optional)",
+			EnvVar: "JS_CA_CERT",
+		},
+		cli.StringFlag{
+			Name:   "js-tls-cert",
+			Usage:  "tls certificate used by the join-server api server (optional)",
+			EnvVar: "JS_TLS_CERT",
+		},
+		cli.StringFlag{
+			Name:   "js-tls-key",
+			Usage:  "tls key used by the join-server api server (optional)",
+			EnvVar: "JS_TLS_KEY",
+		},
+		cli.StringFlag{
+			Name:   "ns-server",
+			Usage:  "hostname:port of the network-server api server",
+			Value:  "127.0.0.1:8000",
+			EnvVar: "NS_SERVER",
+			Hidden: true,
 		},
 	}
 	app.Run(os.Args)

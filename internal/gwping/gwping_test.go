@@ -26,21 +26,29 @@ func TestGatewayPing(t *testing.T) {
 	common.GatewayPingFrequency = 868100000
 
 	Convey("Given a clean database and a gateway", t, func() {
+		nsClient := test.NewNetworkServerClient()
 		test.MustResetDB(db)
 		test.MustFlushRedis(common.RedisPool)
-		common.NetworkServer = test.NewNetworkServerClient()
+		common.NetworkServerPool = test.NewNetworkServerPool(nsClient)
 
 		org := storage.Organization{
 			Name: "test-org",
 		}
 		So(storage.CreateOrganization(common.DB, &org), ShouldBeNil)
 
+		n := storage.NetworkServer{
+			Name:   "test-ns",
+			Server: "test-ns:1234",
+		}
+		So(storage.CreateNetworkServer(common.DB, &n), ShouldBeNil)
+
 		gw := storage.Gateway{
-			MAC:            lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
-			Name:           "test-gw",
-			Description:    "test gateway",
-			OrganizationID: org.ID,
-			Ping:           true,
+			MAC:             lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
+			Name:            "test-gw",
+			Description:     "test gateway",
+			OrganizationID:  org.ID,
+			Ping:            true,
+			NetworkServerID: n.ID,
 		}
 		So(storage.CreateGateway(common.DB, &gw), ShouldBeNil)
 
@@ -62,8 +70,8 @@ func TestGatewayPing(t *testing.T) {
 				})
 
 				Convey("Then the expected ping has been sent to the network-server", func() {
-					So(common.NetworkServer.(*test.NetworkServerClient).SendProprietaryPayloadChan, ShouldHaveLength, 1)
-					req := <-common.NetworkServer.(*test.NetworkServerClient).SendProprietaryPayloadChan
+					So(nsClient.SendProprietaryPayloadChan, ShouldHaveLength, 1)
+					req := <-nsClient.SendProprietaryPayloadChan
 					So(req.Dr, ShouldEqual, uint32(common.GatewayPingDR))
 					So(req.Frequency, ShouldEqual, uint32(common.GatewayPingFrequency))
 					So(req.GatewayMACs, ShouldResemble, [][]byte{{1, 2, 3, 4, 5, 6, 7, 8}})
@@ -81,16 +89,17 @@ func TestGatewayPing(t *testing.T) {
 
 					Convey("When calling HandleReceivedPing", func() {
 						gw2 := storage.Gateway{
-							MAC:            lorawan.EUI64{8, 7, 6, 5, 4, 3, 2, 1},
-							Name:           "test-gw-2",
-							Description:    "test gateway 2",
-							OrganizationID: org.ID,
+							MAC:             lorawan.EUI64{8, 7, 6, 5, 4, 3, 2, 1},
+							Name:            "test-gw-2",
+							Description:     "test gateway 2",
+							OrganizationID:  org.ID,
+							NetworkServerID: n.ID,
 						}
 						So(storage.CreateGateway(common.DB, &gw2), ShouldBeNil)
 
 						now := time.Now().UTC().Truncate(time.Millisecond)
 
-						pong := as.HandleProprietaryUpRequest{
+						pong := as.HandleProprietaryUplinkRequest{
 							Mic: mic[:],
 							RxInfo: []*as.RXInfo{
 								{

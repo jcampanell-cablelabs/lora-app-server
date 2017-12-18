@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/brocaar/lora-app-server/internal/codec"
 	"github.com/brocaar/lora-app-server/internal/gwping"
 
 	log "github.com/sirupsen/logrus"
@@ -29,208 +30,34 @@ func NewApplicationServerAPI() *ApplicationServerAPI {
 	return &ApplicationServerAPI{}
 }
 
-// JoinRequest handles a join-request.
-func (a *ApplicationServerAPI) JoinRequest(ctx context.Context, req *as.JoinRequestRequest) (*as.JoinRequestResponse, error) {
-	var phy lorawan.PHYPayload
-
-	if err := phy.UnmarshalBinary(req.PhyPayload); err != nil {
-		log.Errorf("unmarshal join-request PHYPayload error: %s", err)
-		return nil, grpc.Errorf(codes.InvalidArgument, err.Error())
-	}
-
-	jrPL, ok := phy.MACPayload.(*lorawan.JoinRequestPayload)
-	if !ok {
-		log.Errorf("join-request PHYPayload does not contain a JoinRequestPayload")
-		return nil, grpc.Errorf(codes.InvalidArgument, "PHYPayload does not contain a JoinRequestPayload")
-	}
-
-	var netID lorawan.NetID
-	var devAddr lorawan.DevAddr
-
-	copy(netID[:], req.NetID)
-	copy(devAddr[:], req.DevAddr)
-
-	// get the node and application from the db and validate the AppEUI
-	node, err := storage.GetNode(common.DB, jrPL.DevEUI)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"dev_eui": jrPL.DevEUI,
-		}).Errorf("join-request node does not exist")
-		return nil, grpc.Errorf(codes.Unknown, err.Error())
-	}
-	app, err := storage.GetApplication(common.DB, node.ApplicationID)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"id": node.ApplicationID,
-		}).Errorf("get application error: %s", err)
-		return nil, grpc.Errorf(codes.Internal, err.Error())
-	}
-
-	if node.AppEUI != jrPL.AppEUI {
-		log.WithFields(log.Fields{
-			"dev_eui":          node.DevEUI,
-			"expected_app_eui": node.AppEUI,
-			"request_app_eui":  jrPL.AppEUI,
-		}).Error("join-request DevEUI exists, but with a different AppEUI")
-		return nil, grpc.Errorf(codes.Unknown, "DevEUI exists, but with a different AppEUI")
-	}
-
-	// validate MIC
-	ok, err = phy.ValidateMIC(node.AppKey)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"dev_eui": node.DevEUI,
-			"app_eui": node.AppEUI,
-		}).Errorf("join-request validate mic error: %s", err)
-		return nil, grpc.Errorf(codes.Unknown, err.Error())
-	}
-	if !ok {
-		log.WithFields(log.Fields{
-			"dev_eui": node.DevEUI,
-			"app_eui": node.AppEUI,
-			"mic":     phy.MIC,
-		}).Error("join-request invalid mic")
-		return nil, grpc.Errorf(codes.InvalidArgument, "invalid MIC")
-	}
-
-	// validate that the DevNonce hasn't been used before
-	if !node.ValidateDevNonce(jrPL.DevNonce) {
-		log.WithFields(log.Fields{
-			"dev_eui":   node.DevEUI,
-			"app_eui":   node.AppEUI,
-			"dev_nonce": jrPL.DevNonce,
-		}).Error("join-request DevNonce has already been used")
-		return nil, grpc.Errorf(codes.InvalidArgument, "DevNonce has already been used")
-	}
-
-	// now we know the frame is valid, test if the node is allowed to OTAA
-	if node.IsABP {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "node is ABP device")
-	}
-
-	// get app nonce
-	appNonce, err := getAppNonce()
-	if err != nil {
-		log.Errorf("get AppNone error: %s", err)
-		return nil, grpc.Errorf(codes.Unknown, "get AppNonce error: %s", err)
-	}
-
-	// optional CFList
-	var cFList *lorawan.CFList
-	if len(req.CFList) > 0 && len(cFList) <= len(lorawan.CFList{}) {
-		var cf lorawan.CFList
-		for i := range req.CFList {
-			cf[i] = req.CFList[i]
-		}
-		cFList = &cf
-	}
-
-	// get keys
-	nwkSKey, err := getNwkSKey(node.AppKey, netID, appNonce, jrPL.DevNonce)
-	if err != nil {
-		return nil, grpc.Errorf(codes.Unknown, err.Error())
-	}
-	appSKey, err := getAppSKey(node.AppKey, netID, appNonce, jrPL.DevNonce)
-	if err != nil {
-		return nil, grpc.Errorf(codes.Unknown, err.Error())
-	}
-
-	// update the node
-	node.DevAddr = devAddr
-	node.NwkSKey = nwkSKey
-	node.AppSKey = appSKey
-	if err = storage.UpdateNode(common.DB, node); err != nil {
-		return nil, grpc.Errorf(codes.Unknown, err.Error())
-	}
-
-	// construct response
-	jaPHY := lorawan.PHYPayload{
-		MHDR: lorawan.MHDR{
-			MType: lorawan.JoinAccept,
-			Major: lorawan.LoRaWANR1,
-		},
-		MACPayload: &lorawan.JoinAcceptPayload{
-			AppNonce: appNonce,
-			NetID:    netID,
-			DevAddr:  devAddr,
-			RXDelay:  node.RXDelay,
-			DLSettings: lorawan.DLSettings{
-				RX2DataRate: uint8(node.RX2DR),
-				RX1DROffset: node.RX1DROffset,
-			},
-			CFList: cFList,
-		},
-	}
-	if err = jaPHY.SetMIC(node.AppKey); err != nil {
-		return nil, grpc.Errorf(codes.Unknown, err.Error())
-	}
-	if err = jaPHY.EncryptJoinAcceptPayload(node.AppKey); err != nil {
-		return nil, grpc.Errorf(codes.Unknown, err.Error())
-	}
-
-	b, err := jaPHY.MarshalBinary()
-	if err != nil {
-		return nil, grpc.Errorf(codes.Unknown, err.Error())
-	}
-
-	resp := as.JoinRequestResponse{
-		PhyPayload:         b,
-		NwkSKey:            nwkSKey[:],
-		RxDelay:            uint32(node.RXDelay),
-		Rx1DROffset:        uint32(node.RX1DROffset),
-		RxWindow:           as.RXWindow(node.RXWindow),
-		Rx2DR:              uint32(node.RX2DR),
-		DisableFCntCheck:   node.RelaxFCnt,
-		AdrInterval:        node.ADRInterval,
-		InstallationMargin: node.InstallationMargin,
-	}
-
-	log.WithFields(log.Fields{
-		"dev_eui":          node.DevEUI,
-		"app_eui":          node.AppEUI,
-		"dev_addr":         node.DevAddr,
-		"application_name": app.Name,
-		"node_name":        node.Name,
-	}).Info("join-request accepted")
-
-	err = common.Handler.SendJoinNotification(handler.JoinNotification{
-		ApplicationID:   app.ID,
-		ApplicationName: app.Name,
-		NodeName:        node.Name,
-		DevAddr:         node.DevAddr,
-		DevEUI:          node.DevEUI,
-	})
-	if err != nil {
-		log.Errorf("send join notification to handler error: %s", err)
-	}
-
-	return &resp, nil
-}
-
-// HandleDataUp handles incoming (uplink) data.
-func (a *ApplicationServerAPI) HandleDataUp(ctx context.Context, req *as.HandleDataUpRequest) (*as.HandleDataUpResponse, error) {
-	if len(req.RxInfo) == 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument, "RxInfo must have length > 0")
-	}
-
+// HandleUplinkData handles incoming (uplink) data.
+func (a *ApplicationServerAPI) HandleUplinkData(ctx context.Context, req *as.HandleUplinkDataRequest) (*as.HandleUplinkDataResponse, error) {
 	var appEUI, devEUI lorawan.EUI64
 	copy(appEUI[:], req.AppEUI)
 	copy(devEUI[:], req.DevEUI)
 
-	node, err := storage.GetNode(common.DB, devEUI)
+	d, err := storage.GetDevice(common.DB, devEUI)
 	if err != nil {
-		errStr := fmt.Sprintf("get node error: %s", err)
+		errStr := fmt.Sprintf("get device error: %s", err)
 		log.WithField("dev_eui", devEUI).Error(errStr)
 		return nil, grpc.Errorf(codes.Internal, errStr)
 	}
-	app, err := storage.GetApplication(common.DB, node.ApplicationID)
+
+	app, err := storage.GetApplication(common.DB, d.ApplicationID)
 	if err != nil {
 		errStr := fmt.Sprintf("get application error: %s", err)
-		log.WithField("id", node.ApplicationID).Error(errStr)
+		log.WithField("id", d.ApplicationID).Error(errStr)
 		return nil, grpc.Errorf(codes.Internal, errStr)
 	}
 
-	b, err := lorawan.EncryptFRMPayload(node.AppSKey, true, node.DevAddr, req.FCnt, req.Data)
+	da, err := storage.GetLastDeviceActivationForDevEUI(common.DB, d.DevEUI)
+	if err != nil {
+		errStr := fmt.Sprintf("get device-activation error: %s", err)
+		log.WithField("dev_eui", d.DevEUI).Error(errStr)
+		return nil, grpc.Errorf(codes.Internal, errStr)
+	}
+
+	b, err := lorawan.EncryptFRMPayload(da.AppSKey, true, da.DevAddr, req.FCnt, req.Data)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"dev_eui": devEUI,
@@ -239,10 +66,23 @@ func (a *ApplicationServerAPI) HandleDataUp(ctx context.Context, req *as.HandleD
 		return nil, grpc.Errorf(codes.Internal, "decrypt payload error: %s", err)
 	}
 
+	codecPL := codec.NewPayload(app.PayloadCodec, uint8(req.FPort), app.PayloadEncoderScript, app.PayloadDecoderScript)
+	if codecPL != nil {
+		if err := codecPL.UnmarshalBinary(b); err != nil {
+			log.WithFields(log.Fields{
+				"codec":          app.PayloadCodec,
+				"application_id": app.ID,
+				"f_port":         req.FPort,
+				"f_cnt":          req.FCnt,
+				"dev_eui":        d.DevEUI,
+			}).WithError(err).Error("decode payload error")
+		}
+	}
+
 	pl := handler.DataUpPayload{
 		ApplicationID:   app.ID,
 		ApplicationName: app.Name,
-		NodeName:        node.Name,
+		DeviceName:      d.Name,
 		DevEUI:          devEUI,
 		RXInfo:          []handler.RXInfo{},
 		TXInfo: handler.TXInfo{
@@ -256,9 +96,10 @@ func (a *ApplicationServerAPI) HandleDataUp(ctx context.Context, req *as.HandleD
 			ADR:      req.TxInfo.Adr,
 			CodeRate: req.TxInfo.CodeRate,
 		},
-		FCnt:  req.FCnt,
-		FPort: uint8(req.FPort),
-		Data:  b,
+		FCnt:   req.FCnt,
+		FPort:  uint8(req.FPort),
+		Data:   b,
+		Object: codecPL,
 	}
 
 	for _, rxInfo := range req.RxInfo {
@@ -296,134 +137,54 @@ func (a *ApplicationServerAPI) HandleDataUp(ctx context.Context, req *as.HandleD
 		return nil, grpc.Errorf(codes.Internal, errStr)
 	}
 
-	return &as.HandleDataUpResponse{}, nil
+	return &as.HandleUplinkDataResponse{}, nil
 }
 
-// GetDataDown returns the first payload from the datadown queue.
-func (a *ApplicationServerAPI) GetDataDown(ctx context.Context, req *as.GetDataDownRequest) (*as.GetDataDownResponse, error) {
+// HandleDownlinkACK handles an ack on a downlink transmission.
+func (a *ApplicationServerAPI) HandleDownlinkACK(ctx context.Context, req *as.HandleDownlinkACKRequest) (*as.HandleDownlinkACKResponse, error) {
 	var devEUI lorawan.EUI64
 	copy(devEUI[:], req.DevEUI)
 
-	qi, err := storage.GetNextDownlinkQueueItem(common.DB, devEUI, int(req.MaxPayloadSize))
+	d, err := storage.GetDevice(common.DB, devEUI)
 	if err != nil {
-		errStr := fmt.Sprintf("get next downlink queue item error: %s", err)
-		log.WithFields(log.Fields{
-			"dev_eui":          devEUI,
-			"max_payload_size": req.MaxPayloadSize,
-		}).Error(errStr)
-		return nil, grpc.Errorf(codes.Internal, errStr)
-	}
-
-	// the queue is empty
-	if qi == nil {
-		log.WithField("dev_eui", devEUI).Info("data-down item requested by network-server, but queue is empty")
-		return &as.GetDataDownResponse{}, nil
-	}
-
-	node, err := storage.GetNode(common.DB, devEUI)
-	if err != nil {
-		errStr := fmt.Sprintf("get node error: %s", err)
+		errStr := fmt.Sprintf("get device error: %s", err)
 		log.WithField("dev_eui", devEUI).Error(errStr)
 		return nil, grpc.Errorf(codes.Internal, errStr)
 	}
-
-	b, err := lorawan.EncryptFRMPayload(node.AppSKey, false, node.DevAddr, req.FCnt, qi.Data)
-	if err != nil {
-		errStr := fmt.Sprintf("encrypt payload error: %s", err)
-		log.WithFields(log.Fields{
-			"dev_eui": devEUI,
-			"id":      qi.ID,
-		}).Error(errStr)
-		return nil, grpc.Errorf(codes.Internal, errStr)
-	}
-
-	queueSize, err := storage.GetDownlinkQueueSize(common.DB, devEUI)
-	if err != nil {
-		errStr := fmt.Sprintf("get downlink queue size error: %s", err)
-		log.WithField("dev_eui", devEUI).Error(errStr)
-		return nil, grpc.Errorf(codes.Internal, errStr)
-	}
-
-	if !qi.Confirmed {
-		if err := storage.DeleteDownlinkQueueItem(common.DB, qi.ID); err != nil {
-			errStr := fmt.Sprintf("delete downlink queue item error: %s", err)
-			log.WithFields(log.Fields{
-				"dev_eui": devEUI,
-				"id":      qi.ID,
-			}).Error(errStr)
-			return nil, grpc.Errorf(codes.Internal, errStr)
-		}
-	} else {
-		qi.Pending = true
-		if err := storage.UpdateDownlinkQueueItem(common.DB, *qi); err != nil {
-			errStr := fmt.Sprintf("update downlink queue item error: %s", err)
-			log.WithFields(log.Fields{
-				"dev_eui": devEUI,
-				"id":      qi.ID,
-			}).Error(errStr)
-			return nil, grpc.Errorf(codes.Internal, errStr)
-		}
-	}
-
-	log.WithFields(log.Fields{
-		"dev_eui":   devEUI,
-		"confirmed": qi.Confirmed,
-		"id":        qi.ID,
-		"fcnt":      req.FCnt,
-	}).Info("data-down item requested by network-server")
-
-	return &as.GetDataDownResponse{
-		Data:      b,
-		Confirmed: qi.Confirmed,
-		FPort:     uint32(qi.FPort),
-		MoreData:  queueSize > 1,
-	}, nil
-
-}
-
-// HandleDataDownACK handles an ack on a downlink transmission.
-func (a *ApplicationServerAPI) HandleDataDownACK(ctx context.Context, req *as.HandleDataDownACKRequest) (*as.HandleDataDownACKResponse, error) {
-	var devEUI lorawan.EUI64
-	copy(devEUI[:], req.DevEUI)
-
-	node, err := storage.GetNode(common.DB, devEUI)
-	if err != nil {
-		errStr := fmt.Sprintf("get node error: %s", err)
-		log.WithField("dev_eui", devEUI).Error(errStr)
-		return nil, grpc.Errorf(codes.Internal, errStr)
-	}
-	app, err := storage.GetApplication(common.DB, node.ApplicationID)
+	app, err := storage.GetApplication(common.DB, d.ApplicationID)
 	if err != nil {
 		errStr := fmt.Sprintf("get application error: %s", err)
-		log.WithField("id", node.ApplicationID).Error(errStr)
+		log.WithField("id", d.ApplicationID).Error(errStr)
 		return nil, grpc.Errorf(codes.Internal, errStr)
 	}
 
-	qi, err := storage.GetPendingDownlinkQueueItem(common.DB, devEUI)
+	dqm, err := storage.GetDeviceQueueMappingForDevEUIAndFCnt(common.DB, devEUI, req.FCnt)
 	if err != nil {
-		return nil, grpc.Errorf(codes.Unknown, err.Error())
+		return nil, errToRPCError(err)
 	}
-	if err := storage.DeleteDownlinkQueueItem(common.DB, qi.ID); err != nil {
-		return nil, grpc.Errorf(codes.Unknown, err.Error())
+
+	if err := storage.DeleteDeviceQueueMapping(common.DB, dqm.ID); err != nil {
+		return nil, errToRPCError(err)
 	}
+
 	log.WithFields(log.Fields{
-		"application_name": app.Name,
-		"node_name":        node.Name,
-		"dev_eui":          qi.DevEUI,
-	}).Info("downlink queue item acknowledged")
+		"dev_eui": devEUI,
+	}).Info("downlink device-queue item acknowledged")
 
 	err = common.Handler.SendACKNotification(handler.ACKNotification{
 		ApplicationID:   app.ID,
 		ApplicationName: app.Name,
-		NodeName:        node.Name,
+		DeviceName:      d.Name,
 		DevEUI:          devEUI,
-		Reference:       qi.Reference,
+		Reference:       dqm.Reference,
+		Acknowledged:    req.Acknowledged,
+		FCnt:            req.FCnt,
 	})
 	if err != nil {
 		log.Errorf("send ack notification to handler error: %s", err)
 	}
 
-	return &as.HandleDataDownACKResponse{}, nil
+	return &as.HandleDownlinkACKResponse{}, nil
 }
 
 // HandleError handles an incoming error.
@@ -431,33 +192,32 @@ func (a *ApplicationServerAPI) HandleError(ctx context.Context, req *as.HandleEr
 	var devEUI lorawan.EUI64
 	copy(devEUI[:], req.DevEUI)
 
-	node, err := storage.GetNode(common.DB, devEUI)
+	d, err := storage.GetDevice(common.DB, devEUI)
 	if err != nil {
-		errStr := fmt.Sprintf("get node error: %s", err)
+		errStr := fmt.Sprintf("get device error: %s", err)
 		log.WithField("dev_eui", devEUI).Error(errStr)
 		return nil, grpc.Errorf(codes.Internal, errStr)
 	}
-	app, err := storage.GetApplication(common.DB, node.ApplicationID)
+	app, err := storage.GetApplication(common.DB, d.ApplicationID)
 	if err != nil {
 		errStr := fmt.Sprintf("get application error: %s", err)
-		log.WithField("id", node.ApplicationID).Error(errStr)
+		log.WithField("id", d.ApplicationID).Error(errStr)
 		return nil, grpc.Errorf(codes.Internal, errStr)
 	}
 
 	log.WithFields(log.Fields{
-		"application_name": app.Name,
-		"node_name":        node.Name,
-		"type":             req.Type,
-		"dev_eui":          devEUI,
+		"type":    req.Type,
+		"dev_eui": devEUI,
 	}).Error(req.Error)
 
 	err = common.Handler.SendErrorNotification(handler.ErrorNotification{
 		ApplicationID:   app.ID,
 		ApplicationName: app.Name,
-		NodeName:        node.Name,
+		DeviceName:      d.Name,
 		DevEUI:          devEUI,
 		Type:            req.Type.String(),
 		Error:           req.Error,
+		FCnt:            req.FCnt,
 	})
 	if err != nil {
 		errStr := fmt.Sprintf("send error notification to handler error: %s", err)
@@ -468,8 +228,8 @@ func (a *ApplicationServerAPI) HandleError(ctx context.Context, req *as.HandleEr
 	return &as.HandleErrorResponse{}, nil
 }
 
-// HandleProprietaryUp handles proprietary uplink payloads.
-func (a *ApplicationServerAPI) HandleProprietaryUp(ctx context.Context, req *as.HandleProprietaryUpRequest) (*as.HandleProprietaryUpResponse, error) {
+// HandleProprietaryUplink handles proprietary uplink payloads.
+func (a *ApplicationServerAPI) HandleProprietaryUplink(ctx context.Context, req *as.HandleProprietaryUplinkRequest) (*as.HandleProprietaryUplinkResponse, error) {
 	err := gwping.HandleReceivedPing(req)
 	if err != nil {
 		errStr := fmt.Sprintf("handle received ping error: %s", err)
@@ -477,7 +237,7 @@ func (a *ApplicationServerAPI) HandleProprietaryUp(ctx context.Context, req *as.
 		return nil, grpc.Errorf(codes.Internal, errStr)
 	}
 
-	return &as.HandleProprietaryUpResponse{}, nil
+	return &as.HandleProprietaryUplinkResponse{}, nil
 }
 
 // getAppNonce returns a random application nonce (used for OTAA).

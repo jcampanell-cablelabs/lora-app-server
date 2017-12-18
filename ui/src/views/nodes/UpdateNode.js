@@ -31,12 +31,12 @@ class UpdateNode extends Component {
     });
 
     this.setState({
-      isAdmin: (SessionStore.isAdmin() || SessionStore.isOrganizationAdmin(this.props.params.organizationID) || SessionStore.isApplicationAdmin(this.props.params.applicationID)),
+      isAdmin: (SessionStore.isAdmin() || SessionStore.isOrganizationAdmin(this.props.params.organizationID)),
     });
 
     SessionStore.on("change", () => {
       this.setState({
-        isAdmin: (SessionStore.isAdmin() || SessionStore.isOrganizationAdmin(this.props.params.organizationID) || SessionStore.isApplicationAdmin(this.props.params.applicationID)),
+        isAdmin: (SessionStore.isAdmin() || SessionStore.isOrganizationAdmin(this.props.params.organizationID)),
       });
     });
   }
@@ -53,7 +53,7 @@ class UpdateNode extends Component {
       <div>
         <div className="panel panel-default">
           <div className="panel-body">
-            <NodeForm node={this.state.node} onSubmit={this.onSubmit} disabled={!this.state.isAdmin} application={this.state.application} />
+            <NodeForm applicationID={this.props.params.applicationID} node={this.state.node} onSubmit={this.onSubmit} disabled={!this.state.isAdmin} application={this.state.application} />
           </div>
         </div>
       </div>

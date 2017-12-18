@@ -3,40 +3,69 @@ title: Applications
 menu:
     main:
         parent: use
-        weight: 4
+        weight: 7
 ---
 
 ## Application management
 
-An application is a collection of nodes with the same purpose / of the same type.
+An application is a collection of devices with the same purpose / of the same type.
 Think of a weather station collecting data at different locations for example.
 
-An application has:
+When creating an application, you need to select the [Service-profile]({{<relref "service-profiles.md">}})
+which will be used for the devices created under this application. Note that
+once a service-profile has been selected, it can't be changed.
 
-* Users
-* Nodes
+An application can be configured to decode the received uplink payloads from
+bytes to a meaningful data object, and to encode downlink objects to bytes.
 
-### Users
+### Payload codecs
 
-Users can be assigned to an application to grant them access to the
-application. Note that when an user is already member of the organization
-that these permissions are inherited automatically. In that case it is not
-needed to also add the user to the application. Within the context of an
-application two types of users exists.
+**Note:** the raw `base64` encoded payload will always be available, even when
+a codec has been configured.
 
-#### Application administrator
+#### Cayenne LPP
 
-Application administrators is authorized to manage the users assigned to the
-application and to manage the nodes.
+When selecting the Cayenne LPP codec, LoRa App Server will decode and encode
+following the [Cayenne Low Power Payload](https://mydevices.com/cayenne/docs/lora/)
+specification.
 
-#### Regular user
+#### Custom JavaScript codec functions
 
-Regular users are a ble to see all data within the application, but are not
-able to make any modifications.
+When selecting the Custom JavaScript codec functions option, you can write your
+own (JavaScript) functions to decode an array of bytes to a JavaScript object
+and encode a JavaScript object to an array of bytes.
 
-### Network settings
+##### Decoder function skeleton
 
-An application can hold the network settings for all nodes within the
-application. This makes it easy to keep the configuration of all nodes
-in sync. These settings are identical to the settings on the node. For all
-available options, refer to the [nodes]({{< relref "nodes.md" >}}) documentation.
+```js
+// Decode decodes an array of bytes into an object.
+//  - fPort contains the LoRaWAN fPort number
+//  - bytes is an array of bytes, e.g. [225, 230, 255, 0]
+// The function must return an object, e.g. {"temperature": 22.5}
+function Decode(fPort, bytes) {
+  return {};
+}
+```
+
+##### Encoder function skeleton
+
+```js
+// Encode encodes the given object into an array of bytes.
+//  - fPort contains the LoRaWAN fPort number
+//  - obj is an object, e.g. {"temperature": 22.5}
+// The function must return an array of bytes, e.g. [225, 230, 255, 0]
+function Encode(fPort, obj) {
+  return [];
+}
+```
+
+### Integrations
+
+By default all data is published to a MQTT broker, see also
+[Sending and receiving data]({{<ref "integrate/data.md">}}). However additional
+integrations can be setup. See [Integrations]({{<ref "integrate/integrations.md">}})
+for more information.
+
+### Devices
+
+Multiple [devices]({{<relref "devices.md">}}) can be added to the application.

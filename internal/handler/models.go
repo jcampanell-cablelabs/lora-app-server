@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"encoding/json"
 	"time"
 
+	"github.com/brocaar/lora-app-server/internal/codec"
 	"github.com/brocaar/lorawan"
 )
 
@@ -38,23 +40,25 @@ type TXInfo struct {
 type DataUpPayload struct {
 	ApplicationID   int64         `json:"applicationID,string"`
 	ApplicationName string        `json:"applicationName"`
-	NodeName        string        `json:"nodeName"`
+	DeviceName      string        `json:"deviceName"`
 	DevEUI          lorawan.EUI64 `json:"devEUI"`
 	RXInfo          []RXInfo      `json:"rxInfo"`
 	TXInfo          TXInfo        `json:"txInfo"`
 	FCnt            uint32        `json:"fCnt"`
 	FPort           uint8         `json:"fPort"`
 	Data            []byte        `json:"data"`
+	Object          codec.Payload `json:"object,omitempty"`
 }
 
 // DataDownPayload represents a data-down payload.
 type DataDownPayload struct {
-	ApplicationID int64         `json:"applicationID,string"`
-	DevEUI        lorawan.EUI64 `json:"devEUI"`
-	Reference     string        `json:"reference"`
-	Confirmed     bool          `json:"confirmed"`
-	FPort         uint8         `json:"fPort"`
-	Data          []byte        `json:"data"`
+	ApplicationID int64           `json:"applicationID,string"`
+	DevEUI        lorawan.EUI64   `json:"devEUI"`
+	Reference     string          `json:"reference"`
+	Confirmed     bool            `json:"confirmed"`
+	FPort         uint8           `json:"fPort"`
+	Data          []byte          `json:"data"`
+	Object        json.RawMessage `json:"object"`
 }
 
 // JoinNotification defines the payload sent to the application on
@@ -62,7 +66,7 @@ type DataDownPayload struct {
 type JoinNotification struct {
 	ApplicationID   int64           `json:"applicationID,string"`
 	ApplicationName string          `json:"applicationName"`
-	NodeName        string          `json:"nodeName"`
+	DeviceName      string          `json:"deviceName"`
 	DevEUI          lorawan.EUI64   `json:"devEUI"`
 	DevAddr         lorawan.DevAddr `json:"devAddr"`
 }
@@ -72,9 +76,11 @@ type JoinNotification struct {
 type ACKNotification struct {
 	ApplicationID   int64         `json:"applicationID,string"`
 	ApplicationName string        `json:"applicationName"`
-	NodeName        string        `json:"nodeName"`
+	DeviceName      string        `json:"deviceName"`
 	DevEUI          lorawan.EUI64 `json:"devEUI"`
 	Reference       string        `json:"reference"`
+	Acknowledged    bool          `json:"acknowledged"`
+	FCnt            uint32        `json:"fCnt"`
 }
 
 // ErrorNotification defines the payload sent to the application
@@ -82,8 +88,9 @@ type ACKNotification struct {
 type ErrorNotification struct {
 	ApplicationID   int64         `json:"applicationID,string"`
 	ApplicationName string        `json:"applicationName"`
-	NodeName        string        `json:"nodeName"`
+	DeviceName      string        `json:"deviceName"`
 	DevEUI          lorawan.EUI64 `json:"devEUI"`
 	Type            string        `json:"type"`
 	Error           string        `json:"error"`
+	FCnt            uint32        `json:"fCnt"`
 }

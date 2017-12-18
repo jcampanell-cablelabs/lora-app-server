@@ -35,7 +35,7 @@ func SendPingLoop() {
 }
 
 // HandleReceivedPing handles a ping received by one or multiple gateways.
-func HandleReceivedPing(req *as.HandleProprietaryUpRequest) error {
+func HandleReceivedPing(req *as.HandleProprietaryUplinkRequest) error {
 	var mic lorawan.MIC
 	copy(mic[:], req.Mic)
 
@@ -173,7 +173,22 @@ func getGatewayForPing(tx *sqlx.Tx) (*storage.Gateway, error) {
 }
 
 func sendPing(mic lorawan.MIC, ping storage.GatewayPing) error {
-	_, err := common.NetworkServer.SendProprietaryPayload(context.Background(), &ns.SendProprietaryPayloadRequest{
+	gw, err := storage.GetGateway(common.DB, ping.GatewayMAC, false)
+	if err != nil {
+		return errors.Wrap(err, "get gateway error")
+	}
+
+	n, err := storage.GetNetworkServer(common.DB, gw.NetworkServerID)
+	if err != nil {
+		return errors.Wrap(err, "get network-server error")
+	}
+
+	nsClient, err := common.NetworkServerPool.Get(n.Server)
+	if err != nil {
+		return errors.Wrap(err, "get network-server client error")
+	}
+
+	_, err = nsClient.SendProprietaryPayload(context.Background(), &ns.SendProprietaryPayloadRequest{
 		Mic:         mic[:],
 		GatewayMACs: [][]byte{ping.GatewayMAC[:]},
 		IPol:        false,

@@ -10,13 +10,10 @@ class NodeRow extends Component {
   render() {
     return(
       <tr>
-        <td><Link to={`/organizations/${this.props.application.organizationID}/applications/${this.props.application.id}/nodes/${this.props.node.devEUI}/edit`}>{this.props.node.name}</Link></td>
+        <td><Link to={`organizations/${this.props.application.organizationID}/applications/${this.props.application.id}/nodes/${this.props.node.devEUI}/edit`}>{this.props.node.name}</Link></td>
         <td>{this.props.node.devEUI}</td>
+        <td><Link to={`organizations/${this.props.application.organizationID}/device-profiles/${this.props.node.deviceProfileID}`}>{this.props.node.deviceProfileName}</Link></td>
         <td>{this.props.node.description}</td>
-        <td>
-          <span className={this.props.node.isABP ? 'hidden' : ''}>OTAA</span>
-          <span className={this.props.node.isABP ? '' : 'hidden'}>ABP</span>
-        </td>
       </tr>
     );
   }
@@ -47,12 +44,12 @@ class ListNodes extends Component {
     });
 
     this.setState({
-      isAdmin: (SessionStore.isAdmin() || SessionStore.isOrganizationAdmin(this.props.params.organizationID) || SessionStore.isApplicationAdmin(this.props.params.applicationID)),
+      isAdmin: (SessionStore.isAdmin() || SessionStore.isOrganizationAdmin(this.props.params.organizationID)),
     });
 
     SessionStore.on("change", () => {
       this.setState({
-        isAdmin: (SessionStore.isAdmin() || SessionStore.isOrganizationAdmin(this.props.params.organizationID) || SessionStore.isApplicationAdmin(this.props.params.applicationID)),
+        isAdmin: (SessionStore.isAdmin() || SessionStore.isOrganizationAdmin(this.props.params.organizationID)),
       });
     });
   }
@@ -108,7 +105,7 @@ class ListNodes extends Component {
             </div>
           </form>
           <div className={`btn-group pull-right ${this.state.isAdmin ? "" : "hidden"}`}>
-            <Link to={`/organizations/${this.props.params.organizationID}/applications/${this.state.application.id}/nodes/create`}><button type="button" className="btn btn-default btn-sm">Create node</button></Link>
+            <Link to={`/organizations/${this.props.params.organizationID}/applications/${this.state.application.id}/nodes/create`}><button type="button" className="btn btn-default btn-sm">Create device</button></Link>
           </div>
         </div>
         <div className="panel-body">
@@ -117,8 +114,8 @@ class ListNodes extends Component {
               <tr>
                 <th className="col-md-3">Device name</th>
                 <th className="col-md-2">Device EUI</th>
+                <th className="col-md-3">Device-profile</th>
                 <th>Device description</th>
-                <th className="col-md-1">Activation</th>
               </tr>
             </thead>
             <tbody>

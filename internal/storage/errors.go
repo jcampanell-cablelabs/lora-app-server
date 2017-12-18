@@ -7,10 +7,23 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Action defines the action type.
+type Action int
+
+// Possible actions
+const (
+	Select Action = iota
+	Insert
+	Update
+	Delete
+	Scan
+)
+
 // errors
 var (
 	ErrAlreadyExists             = errors.New("object already exists")
 	ErrDoesNotExist              = errors.New("object does not exist")
+	ErrUsedByOtherObjects        = errors.New("this object is used by other objects, remove them first")
 	ErrApplicationInvalidName    = errors.New("invalid application name")
 	ErrNodeInvalidName           = errors.New("invalid node name")
 	ErrNodeMaxRXDelay            = errors.New("max value of RXDelay is 15")
@@ -20,9 +33,10 @@ var (
 	ErrInvalidUsernameOrPassword = errors.New("invalid username or password")
 	ErrOrganizationInvalidName   = errors.New("invalid organization name")
 	ErrGatewayInvalidName        = errors.New("invalid gateway name")
+	ErrInvalidEmail              = errors.New("invalid e-mail")
 )
 
-func handlePSQLError(err error, description string) error {
+func handlePSQLError(action Action, err error, description string) error {
 	if err == sql.ErrNoRows {
 		return ErrDoesNotExist
 	}
@@ -33,9 +47,18 @@ func handlePSQLError(err error, description string) error {
 		case "unique_violation":
 			return ErrAlreadyExists
 		case "foreign_key_violation":
-			return ErrDoesNotExist
+			switch action {
+			case Delete:
+				return ErrUsedByOtherObjects
+			default:
+				return ErrDoesNotExist
+			}
 		}
 	}
 
+	return errors.Wrap(err, description)
+}
+
+func handleGrpcError(err error, description string) error {
 	return errors.Wrap(err, description)
 }

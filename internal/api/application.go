@@ -9,10 +9,12 @@ import (
 
 	pb "github.com/brocaar/lora-app-server/api"
 	"github.com/brocaar/lora-app-server/internal/api/auth"
+	"github.com/brocaar/lora-app-server/internal/codec"
 	"github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lora-app-server/internal/handler"
 	"github.com/brocaar/lora-app-server/internal/handler/httphandler"
 	"github.com/brocaar/lora-app-server/internal/storage"
+	"github.com/jmoiron/sqlx"
 )
 
 // ApplicationAPI exports the Application related functions.
@@ -27,6 +29,7 @@ func NewApplicationAPI(validator auth.Validator) *ApplicationAPI {
 	}
 }
 
+// Create creates the given application.
 func (a *ApplicationAPI) Create(ctx context.Context, req *pb.CreateApplicationRequest) (*pb.CreateApplicationResponse, error) {
 	if err := a.validator.Validate(ctx,
 		auth.ValidateApplicationsAccess(auth.Create, req.OrganizationID),
@@ -35,18 +38,13 @@ func (a *ApplicationAPI) Create(ctx context.Context, req *pb.CreateApplicationRe
 	}
 
 	app := storage.Application{
-		Name:               req.Name,
-		Description:        req.Description,
-		IsABP:              req.IsABP,
-		IsClassC:           req.IsClassC,
-		RelaxFCnt:          req.RelaxFCnt,
-		RXDelay:            uint8(req.RxDelay),
-		RX1DROffset:        uint8(req.Rx1DROffset),
-		RXWindow:           storage.RXWindow(req.RxWindow),
-		RX2DR:              uint8(req.Rx2DR),
-		ADRInterval:        req.AdrInterval,
-		InstallationMargin: req.InstallationMargin,
-		OrganizationID:     req.OrganizationID,
+		Name:                 req.Name,
+		Description:          req.Description,
+		OrganizationID:       req.OrganizationID,
+		ServiceProfileID:     req.ServiceProfileID,
+		PayloadCodec:         codec.Type(req.PayloadCodec),
+		PayloadEncoderScript: req.PayloadEncoderScript,
+		PayloadDecoderScript: req.PayloadDecoderScript,
 	}
 
 	if err := storage.CreateApplication(common.DB, &app); err != nil {
@@ -58,6 +56,7 @@ func (a *ApplicationAPI) Create(ctx context.Context, req *pb.CreateApplicationRe
 	}, nil
 }
 
+// Get returns the requested application.
 func (a *ApplicationAPI) Get(ctx context.Context, req *pb.GetApplicationRequest) (*pb.GetApplicationResponse, error) {
 	if err := a.validator.Validate(ctx,
 		auth.ValidateApplicationAccess(req.Id, auth.Read),
@@ -70,24 +69,20 @@ func (a *ApplicationAPI) Get(ctx context.Context, req *pb.GetApplicationRequest)
 		return nil, errToRPCError(err)
 	}
 	resp := pb.GetApplicationResponse{
-		Id:                 app.ID,
-		Name:               app.Name,
-		Description:        app.Description,
-		IsABP:              app.IsABP,
-		IsClassC:           app.IsClassC,
-		RxDelay:            uint32(app.RXDelay),
-		Rx1DROffset:        uint32(app.RX1DROffset),
-		RxWindow:           pb.RXWindow(app.RXWindow),
-		Rx2DR:              uint32(app.RX2DR),
-		RelaxFCnt:          app.RelaxFCnt,
-		AdrInterval:        app.ADRInterval,
-		InstallationMargin: app.InstallationMargin,
-		OrganizationID:     app.OrganizationID,
+		Id:                   app.ID,
+		Name:                 app.Name,
+		Description:          app.Description,
+		OrganizationID:       app.OrganizationID,
+		ServiceProfileID:     app.ServiceProfileID,
+		PayloadCodec:         string(app.PayloadCodec),
+		PayloadEncoderScript: app.PayloadEncoderScript,
+		PayloadDecoderScript: app.PayloadDecoderScript,
 	}
 
 	return &resp, nil
 }
 
+// Update updates the given application.
 func (a *ApplicationAPI) Update(ctx context.Context, req *pb.UpdateApplicationRequest) (*pb.UpdateApplicationResponse, error) {
 	if err := a.validator.Validate(ctx,
 		auth.ValidateApplicationAccess(req.Id, auth.Update),
@@ -103,16 +98,10 @@ func (a *ApplicationAPI) Update(ctx context.Context, req *pb.UpdateApplicationRe
 	// update the fields
 	app.Name = req.Name
 	app.Description = req.Description
-	app.IsABP = req.IsABP
-	app.IsClassC = req.IsClassC
-	app.RXDelay = uint8(req.RxDelay)
-	app.RX1DROffset = uint8(req.Rx1DROffset)
-	app.RXWindow = storage.RXWindow(req.RxWindow)
-	app.RX2DR = uint8(req.Rx2DR)
-	app.RelaxFCnt = req.RelaxFCnt
-	app.ADRInterval = req.AdrInterval
-	app.InstallationMargin = req.InstallationMargin
-	app.OrganizationID = req.OrganizationID
+	app.ServiceProfileID = req.ServiceProfileID
+	app.PayloadCodec = codec.Type(req.PayloadCodec)
+	app.PayloadEncoderScript = req.PayloadEncoderScript
+	app.PayloadDecoderScript = req.PayloadDecoderScript
 
 	err = storage.UpdateApplication(common.DB, app)
 	if err != nil {
@@ -122,6 +111,7 @@ func (a *ApplicationAPI) Update(ctx context.Context, req *pb.UpdateApplicationRe
 	return &pb.UpdateApplicationResponse{}, nil
 }
 
+// Delete deletes the given application.
 func (a *ApplicationAPI) Delete(ctx context.Context, req *pb.DeleteApplicationRequest) (*pb.DeleteApplicationResponse, error) {
 	if err := a.validator.Validate(ctx,
 		auth.ValidateApplicationAccess(req.Id, auth.Delete),
@@ -129,13 +119,21 @@ func (a *ApplicationAPI) Delete(ctx context.Context, req *pb.DeleteApplicationRe
 		return nil, grpc.Errorf(codes.Unauthenticated, "authentication failed: %s", err)
 	}
 
-	err := storage.DeleteApplication(common.DB, req.Id)
+	err := storage.Transaction(common.DB, func(tx *sqlx.Tx) error {
+		err := storage.DeleteApplication(tx, req.Id)
+		if err != nil {
+			return errToRPCError(err)
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, errToRPCError(err)
+		return nil, err
 	}
+
 	return &pb.DeleteApplicationResponse{}, nil
 }
 
+// List lists the available applications.
 func (a *ApplicationAPI) List(ctx context.Context, req *pb.ListApplicationRequest) (*pb.ListApplicationResponse, error) {
 	if err := a.validator.Validate(ctx,
 		auth.ValidateApplicationsAccess(auth.List, req.OrganizationID),
@@ -154,7 +152,7 @@ func (a *ApplicationAPI) List(ctx context.Context, req *pb.ListApplicationReques
 	}
 
 	var count int
-	var apps []storage.Application
+	var apps []storage.ApplicationListItem
 
 	if req.OrganizationID == 0 {
 		if isAdmin {
@@ -202,124 +200,19 @@ func (a *ApplicationAPI) List(ctx context.Context, req *pb.ListApplicationReques
 		TotalCount: int64(count),
 	}
 	for _, app := range apps {
-		item := pb.GetApplicationResponse{
+		item := pb.ApplicationListItem{
 			Id:                 app.ID,
 			Name:               app.Name,
 			Description:        app.Description,
-			IsABP:              app.IsABP,
-			IsClassC:           app.IsClassC,
-			RxDelay:            uint32(app.RXDelay),
-			Rx1DROffset:        uint32(app.RX1DROffset),
-			RxWindow:           pb.RXWindow(app.RXWindow),
-			Rx2DR:              uint32(app.RX2DR),
-			RelaxFCnt:          app.RelaxFCnt,
-			AdrInterval:        app.ADRInterval,
-			InstallationMargin: app.InstallationMargin,
 			OrganizationID:     app.OrganizationID,
+			ServiceProfileID:   app.ServiceProfileID,
+			ServiceProfileName: app.ServiceProfileName,
 		}
 
 		resp.Result = append(resp.Result, &item)
 	}
 
 	return &resp, nil
-}
-
-// ListUsers lists the users for an application.
-func (a *ApplicationAPI) ListUsers(ctx context.Context, in *pb.ListApplicationUsersRequest) (*pb.ListApplicationUsersResponse, error) {
-	if err := a.validator.Validate(ctx,
-		auth.ValidateApplicationUsersAccess(in.Id, auth.List),
-	); err != nil {
-		return nil, grpc.Errorf(codes.Unauthenticated, "authentication failed: %s", err)
-	}
-
-	total, err := storage.GetApplicationUsersCount(common.DB, in.Id)
-	if nil != err {
-		return nil, errToRPCError(err)
-	}
-
-	userAccess, err := storage.GetApplicationUsers(common.DB, in.Id, int(in.Limit), int(in.Offset))
-	if nil != err {
-		return nil, errToRPCError(err)
-	}
-
-	appUsers := make([]*pb.GetApplicationUserResponse, len(userAccess))
-	for i, ua := range userAccess {
-		// Get the user information
-		appUsers[i] = &pb.GetApplicationUserResponse{
-			Id:       ua.UserID,
-			Username: ua.Username,
-			IsAdmin:  ua.IsAdmin,
-		}
-	}
-	return &pb.ListApplicationUsersResponse{TotalCount: total, Result: appUsers}, nil
-}
-
-// SetUsers sets the users for an application.  Any existing users are
-// dropped in favor of this list.
-func (a *ApplicationAPI) AddUser(ctx context.Context, in *pb.AddApplicationUserRequest) (*pb.EmptyApplicationUserResponse, error) {
-	if err := a.validator.Validate(ctx,
-		auth.ValidateApplicationUsersAccess(in.Id, auth.Create),
-	); err != nil {
-		return nil, grpc.Errorf(codes.Unauthenticated, "authentication failed: %s", err)
-	}
-
-	err := storage.CreateUserForApplication(common.DB, in.Id, in.UserID, in.IsAdmin)
-	if nil != err {
-		return nil, errToRPCError(err)
-	}
-	return &pb.EmptyApplicationUserResponse{}, nil
-}
-
-// GetUser gets the user that is associated with the application.
-func (a *ApplicationAPI) GetUser(ctx context.Context, in *pb.ApplicationUserRequest) (*pb.GetApplicationUserResponse, error) {
-	if err := a.validator.Validate(ctx,
-		auth.ValidateApplicationUserAccess(in.Id, in.UserID, auth.Read),
-	); err != nil {
-		return nil, grpc.Errorf(codes.Unauthenticated, "authentication failed: %s", err)
-	}
-
-	ua, err := storage.GetUserForApplication(common.DB, in.Id, in.UserID)
-	if nil != err {
-		return nil, errToRPCError(err)
-	}
-
-	appUser := &pb.GetApplicationUserResponse{
-		Id:       ua.UserID,
-		Username: ua.Username,
-		IsAdmin:  ua.IsAdmin,
-	}
-
-	return appUser, nil
-}
-
-// PutUser sets the user's access to the associated application.
-func (a *ApplicationAPI) UpdateUser(ctx context.Context, in *pb.UpdateApplicationUserRequest) (*pb.EmptyApplicationUserResponse, error) {
-	if err := a.validator.Validate(ctx,
-		auth.ValidateApplicationUserAccess(in.Id, in.UserID, auth.Update),
-	); err != nil {
-		return nil, grpc.Errorf(codes.Unauthenticated, "authentication failed: %s", err)
-	}
-
-	err := storage.UpdateUserForApplication(common.DB, in.Id, in.UserID, in.IsAdmin)
-	if nil != err {
-		return nil, errToRPCError(err)
-	}
-	return &pb.EmptyApplicationUserResponse{}, nil
-}
-
-// DeleteUser deletes the user's access to the associated application.
-func (a *ApplicationAPI) DeleteUser(ctx context.Context, in *pb.ApplicationUserRequest) (*pb.EmptyApplicationUserResponse, error) {
-	if err := a.validator.Validate(ctx,
-		auth.ValidateApplicationUserAccess(in.Id, in.UserID, auth.Delete),
-	); err != nil {
-		return nil, grpc.Errorf(codes.Unauthenticated, "authentication failed: %s", err)
-	}
-
-	err := storage.DeleteUserForApplication(common.DB, in.Id, in.UserID)
-	if nil != err {
-		return nil, errToRPCError(err)
-	}
-	return &pb.EmptyApplicationUserResponse{}, nil
 }
 
 // CreateHTTPIntegration creates an HTTP application-integration.

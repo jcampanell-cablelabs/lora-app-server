@@ -8,6 +8,151 @@ menu:
 
 ## Changelog
 
+### 0.16.0
+
+**Features:**
+
+* LoRa App Server is now able to decode (uplink) and encode (downlink)
+  payloads using the following per application configurable codecs:
+
+  * None (only the raw `base64` encoded data will be exposed)
+  * Cayenne LPP (data will be encoded / decoded using the
+    [Cayenne LPP](https://mydevices.com/cayenne/docs/lora/) encoding)
+  * Custom JavaScript codec functions (you can provide your own encoding /
+    decoding functions in JavaScript)
+
+See [Applications](https://docs.loraserver.io/lora-app-server/use/applications/)
+documentation for instructions how to configure this option.
+
+### 0.15.0
+
+**Changes:**
+
+* Downlink device-queue
+
+  * Downlink device-queue has been moved from the LoRa App Server database to
+    the LoRa Server database.
+  * LoRa App Server sends nACK when no confirmation has been received on
+    confirmed downlink transmission. See [ACK notifications](https://docs.loraserver.io/lora-app-server/integrate/data/).
+  * LoRa App Server will not re-try transmitting a confirmed downlink anymore.
+  * ACK and error notifications now contain the `fCnt` to which the notification is related.
+  * The downlink-queue is now flushed on a (re)activation.
+
+* Downlink device-queue API (`/api/devices/{devEUI}/queue`)
+  * Removed `DELETE /api/devices/{devEUI}/queue/{id}` endpoint (as removing
+    individual device-queue items will give `fCnt` gaps).
+  * Added `DELETE /api/devices/{devEUI}/queue` to flush the whole device-queue.
+
+* Class-C
+  * Class-C timeout (see [device-profiles](https://docs.loraserver.io/lora-app-server/use/device-profiles/))
+    has been implemented for confirmed downlink transmissions. **Make sure to
+    update this value for existing Class-C device-profiles to a sane value**.
+
+**Bugfixes:**
+
+* Fix organization pagination (thanks [@jcampanell-cablelabs](https://github.com/jcampanell-cablelabs))
+
+**Improvements:**
+
+* Use RFC1945 Authorization header format (thanks [@fifthaxe](https://github.com/fifthaxe))
+
+#### Upgrading
+
+This release depends on LoRa Server 0.23.0. Upgrade LoRa Server first.
+After upgrading LoRa App Server, it will migrate the remaining
+device-queue items to the LoRa Server database.
+
+### 0.14.2
+
+**Bugfixes:**
+
+* Fix unclosed response body (HTTP integrations).
+
+### 0.14.1
+
+**Bugfixes:**
+
+* Remove `RxInfo` length validation as this slice is empty when
+  *Add gateway meta-data* is disabled in the service-profile
+  (thanks [@pni-jmattison](https://forum.loraserver.io/u/pni-jmattison/summary)).
+* Rename `/api/node/...` prefix of downlink queue into `/api/device/...`
+  (thanks [@iegomez](https://github.com/iegomez)).
+* Rename `DownlinkQueue...` gRPC methods and structs into `DeviceQueue...`.
+
+### 0.14.0
+
+**Note:** this release brings many changes! Make sure (as always) to make a
+backup of your PostgreSQL and Redis database before upgrading.
+
+**Changes:**
+
+* Data-model refactor to implement service-profile, device-profile and
+  routing-profile storage as defined in the
+  [LoRaWAN backend interfaces](https://www.lora-alliance.org/lorawan-for-developers).
+
+* Application users have been removed to avoid complexity in the API
+  authorization. Users can still be assigned to organizations.
+
+* LoRa App Server can now connect to multiple [LoRa Server](https://docs.loraserver.io/loraserver/)
+  instances.
+
+* LoRa App Server exposes a Join-Server API (as defined in the LoRaWAN backend
+  interfaces document), which LoRa Server uses as a default join-server.
+
+* E-mail and note field added for users.
+
+* Adaptive-datarate configuration has been moved to LoRa Server.
+
+* OTAA RX configuration has been moved to LoRa Server.
+
+**API changes:**
+
+* New API endpoints:
+  * `/api/device-profiles` (management of device-profiles)
+  * `/api/service-profiles` (management of service-profiles)
+  * `/api/network-servers` (management of network-servers)
+  * `/api/devices` (management of devices, used to be `/api/nodes`, settings
+    have been removed and device-profile field has been added)
+
+* Updated API endpoints:
+  * `/api/applications` (management of applications, most of the settings are now part of the device-profile)
+  * `/api/gateways` (management of gateways, network-server field has been added)
+
+* Removed API endpoints:
+  * `/api/applications/{id}/users` (management of application users)
+  * `/api/nodes` (management of nodes, has been refactored into `/api/devices`)
+
+**Note:** these changes also apply to the related gRPC API endpoints.
+
+#### How to upgrade
+
+**Note:** this release brings many changes! Make sure (as always) to make a
+backup of your PostgreSQL and Redis database before upgrading.
+
+**Note:** When LoRa App Server is running on a different server than LoRa Server,
+make sure to set the `--as-public-server` / `AS_PUBLIC_SERVER`
+(default `localhost:8001`).
+
+This release depends on the latest LoRa Server release (0.22).
+Start with updating LoRa Server first. See also the
+[LoRa Server changelog](https://docs.loraserver.io/loraserver/overview/changelog/).
+
+LoRa App Server will perform the data-migration when the `--db-automigrate` / 
+`DB_AUTOMIGRATE` config flag is set. It will:
+
+* Create a network-server record + routing-profile on LoRa Server (so that
+  LoRa Server knows how to connect back).
+* For each organization, it will create a service-profile
+* It will create device-profiles (either per device or per application when
+  the "use application settings" is checked)
+
+### 0.13.2
+
+**Features:**
+
+* The list of nodes can now be filtered on DevEUI or name prefix
+  (thanks [@iegomez](https://github.com/iegomez)).
+
 ### 0.13.1
 
 **Improvements:**

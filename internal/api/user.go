@@ -23,7 +23,7 @@ type UserAPI struct {
 // InternalUserAPI exports the internal User related functions.
 type InternalUserAPI struct {
 	validator auth.Validator
-    input     *cli.Context
+	input     *cli.Context
 }
 
 // NewUserAPI creates a new UserAPI.
@@ -49,20 +49,13 @@ func (a *UserAPI) Create(ctx context.Context, req *pb.AddUserRequest) (*pb.AddUs
 		}
 	}
 
-	// validate if the client has admin rights for the given applications
-	// to which the user must be linked
-	for _, app := range req.Applications {
-		if err := a.validator.Validate(ctx,
-			auth.ValidateIsApplicationAdmin(app.ApplicationID)); err != nil {
-			return nil, grpc.Errorf(codes.Unauthenticated, "authentication failed: %s", err)
-		}
-	}
-
 	user := storage.User{
 		Username:   req.Username,
 		SessionTTL: req.SessionTTL,
 		IsAdmin:    req.IsAdmin,
 		IsActive:   req.IsActive,
+		Email:      req.Email,
+		Note:       req.Note,
 	}
 
 	isAdmin, err := a.validator.GetIsAdmin(ctx)
@@ -87,12 +80,6 @@ func (a *UserAPI) Create(ctx context.Context, req *pb.AddUserRequest) (*pb.AddUs
 
 		for _, org := range req.Organizations {
 			if err := storage.CreateOrganizationUser(tx, org.OrganizationID, userID, org.IsAdmin); err != nil {
-				return err
-			}
-		}
-
-		for _, app := range req.Applications {
-			if err := storage.CreateUserForApplication(tx, app.ApplicationID, userID, app.IsAdmin); err != nil {
 				return err
 			}
 		}
@@ -126,6 +113,8 @@ func (a *UserAPI) Get(ctx context.Context, req *pb.UserRequest) (*pb.GetUserResp
 		IsActive:   user.IsActive,
 		CreatedAt:  user.CreatedAt.String(),
 		UpdatedAt:  user.UpdatedAt.String(),
+		Email:      user.Email,
+		Note:       user.Note,
 	}, nil
 }
 
@@ -178,6 +167,8 @@ func (a *UserAPI) Update(ctx context.Context, req *pb.UpdateUserRequest) (*pb.Us
 		IsAdmin:    req.IsAdmin,
 		IsActive:   req.IsActive,
 		SessionTTL: req.SessionTTL,
+		Email:      req.Email,
+		Note:       req.Note,
 	}
 
 	err := storage.UpdateUser(common.DB, userUpdate)
@@ -218,10 +209,9 @@ func (a *UserAPI) UpdatePassword(ctx context.Context, req *pb.UpdateUserPassword
 
 // NewInternalUserAPI creates a new InternalUserAPI.
 func NewInternalUserAPI(validator auth.Validator, c *cli.Context) *InternalUserAPI {
-
 	return &InternalUserAPI{
 		validator: validator,
-        input:     c,
+		input:     c,
 	}
 }
 
@@ -272,7 +262,6 @@ func (a *InternalUserAPI) Profile(ctx context.Context, req *pb.ProfileRequest) (
 			UpdatedAt:  prof.User.UpdatedAt.Format(time.RFC3339Nano),
 		},
 		Organizations: make([]*pb.OrganizationLink, len(prof.Organizations)),
-		Applications:  make([]*pb.ApplicationLink, len(prof.Applications)),
 		Settings: &pb.ProfileSettings{
 			DisableAssignExistingUsers: auth.DisableAssignExistingUsers,
 		},
@@ -288,14 +277,15 @@ func (a *InternalUserAPI) Profile(ctx context.Context, req *pb.ProfileRequest) (
 		}
 	}
 
-	for i := range prof.Applications {
-		resp.Applications[i] = &pb.ApplicationLink{
-			ApplicationID:   prof.Applications[i].ID,
-			ApplicationName: prof.Applications[i].Name,
-			IsAdmin:         prof.Applications[i].IsAdmin,
-			UpdatedAt:       prof.Applications[i].UpdatedAt.Format(time.RFC3339Nano),
-			CreatedAt:       prof.Applications[i].CreatedAt.Format(time.RFC3339Nano),
-		}
+	return &resp, nil
+}
+
+// Branding returns UI branding.
+func (a *InternalUserAPI) Branding(ctx context.Context, req *pb.BrandingRequest) (*pb.BrandingResponse, error) {
+	resp := pb.BrandingResponse{
+		Logo:         a.input.String("branding-header"),
+		Registration: a.input.String("branding-registration"),
+		Footer:       a.input.String("branding-footer"),
 	}
 
 	return &resp, nil

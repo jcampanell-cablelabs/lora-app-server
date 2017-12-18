@@ -1,54 +1,39 @@
 package storage
 
 import (
-	"database/sql"
 	"fmt"
 	"regexp"
-	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/brocaar/lora-app-server/internal/codec"
 	"github.com/jmoiron/sqlx"
-	"github.com/lib/pq"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 var applicationNameRegexp = regexp.MustCompile(`^[\w-]+$`)
 
 // Application represents an application.
 type Application struct {
-	ID             int64  `db:"id"`
-	Name           string `db:"name"`
-	Description    string `db:"description"`
-	OrganizationID int64  `db:"organization_id"`
-
-	IsABP              bool     `db:"is_abp"`
-	IsClassC           bool     `db:"is_class_c"`
-	RelaxFCnt          bool     `db:"relax_fcnt"`
-	RXWindow           RXWindow `db:"rx_window"`
-	RXDelay            uint8    `db:"rx_delay"`
-	RX1DROffset        uint8    `db:"rx1_dr_offset"`
-	RX2DR              uint8    `db:"rx2_dr"`
-	ADRInterval        uint32   `db:"adr_interval"`
-	InstallationMargin float64  `db:"installation_margin"`
+	ID                   int64      `db:"id"`
+	Name                 string     `db:"name"`
+	Description          string     `db:"description"`
+	OrganizationID       int64      `db:"organization_id"`
+	ServiceProfileID     string     `db:"service_profile_id"`
+	PayloadCodec         codec.Type `db:"payload_codec"`
+	PayloadEncoderScript string     `db:"payload_encoder_script"`
+	PayloadDecoderScript string     `db:"payload_decoder_script"`
 }
 
-// UserAccess represents the users that have access to an application
-type UserAccess struct {
-	UserID    int64     `db:"user_id"`
-	Username  string    `db:"username"`
-	IsAdmin   bool      `db:"is_admin"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
+// ApplicationListItem devices the application as a list item.
+type ApplicationListItem struct {
+	Application
+	ServiceProfileName string `db:"service_profile_name"`
 }
 
 // Validate validates the data of the Application.
 func (a Application) Validate() error {
 	if !applicationNameRegexp.MatchString(a.Name) {
 		return ErrApplicationInvalidName
-	}
-
-	if a.RXDelay > 15 {
-		return errors.New("max value of RXDelay is 15")
 	}
 
 	return nil
@@ -64,60 +49,40 @@ func CreateApplication(db *sqlx.DB, item *Application) error {
 		insert into application (
 			name,
 			description,
-			rx_delay,
-			rx1_dr_offset,
-			rx_window,
-			rx2_dr,
-			relax_fcnt,
-			adr_interval,
-			installation_margin,
-			is_abp,
-			is_class_c,
-			organization_id
-		) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) returning id`,
+			organization_id,
+			service_profile_id,
+			payload_codec,
+			payload_encoder_script,
+			payload_decoder_script
+		) values ($1, $2, $3, $4, $5, $6, $7) returning id`,
 		item.Name,
 		item.Description,
-		item.RXDelay,
-		item.RX1DROffset,
-		item.RXWindow,
-		item.RX2DR,
-		item.RelaxFCnt,
-		item.ADRInterval,
-		item.InstallationMargin,
-		item.IsABP,
-		item.IsClassC,
 		item.OrganizationID,
+		item.ServiceProfileID,
+		item.PayloadCodec,
+		item.PayloadEncoderScript,
+		item.PayloadDecoderScript,
 	)
 	if err != nil {
-		switch err := err.(type) {
-		case *pq.Error:
-			switch err.Code.Name() {
-			case "unique_violation":
-				return ErrAlreadyExists
-			default:
-				return errors.Wrap(err, "insert error")
-			}
-		default:
-			return errors.Wrap(err, "insert error")
-		}
+		return handlePSQLError(Insert, err, "insert error")
 	}
+
 	log.WithFields(log.Fields{
 		"id":   item.ID,
 		"name": item.Name,
 	}).Info("application created")
+
 	return nil
 }
 
 // GetApplication returns the Application for the given id.
-func GetApplication(db *sqlx.DB, id int64) (Application, error) {
+func GetApplication(db sqlx.Queryer, id int64) (Application, error) {
 	var app Application
-	err := db.Get(&app, "select * from application where id = $1", id)
+	err := sqlx.Get(db, &app, "select * from application where id = $1", id)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return app, ErrDoesNotExist
-		}
-		return app, errors.Wrap(err, "select error")
+		return app, handlePSQLError(Select, err, "select error")
 	}
+
 	return app, nil
 }
 
@@ -141,17 +106,13 @@ func GetApplicationCountForUser(db *sqlx.DB, username string, organizationID int
 		select
 			count(a.*)
 		from application a
-		left join application_user au
-			on a.id = au.application_id
-		left join organization_user ou
+		inner join organization_user ou
 			on a.organization_id = ou.organization_id
 		inner join "user" u
-			on au.user_id = u.id or ou.user_id = u.id
+			on u.id = ou.user_id
 		where
 			u.username = $1
 			and u.is_active = true
-			and (au.user_id is null or au.user_id = u.id)
-			and (ou.user_id is null or ou.user_id = u.id)
 			and (
 				$2 = 0
 				or a.organization_id = $2
@@ -182,9 +143,22 @@ func GetApplicationCountForOrganizationID(db *sqlx.DB, organizationID int64) (in
 
 // GetApplications returns a slice of applications, sorted by name and
 // respecting the given limit and offset.
-func GetApplications(db *sqlx.DB, limit, offset int) ([]Application, error) {
-	var apps []Application
-	err := db.Select(&apps, "select * from application order by name limit $1 offset $2", limit, offset)
+func GetApplications(db *sqlx.DB, limit, offset int) ([]ApplicationListItem, error) {
+	var apps []ApplicationListItem
+	err := db.Select(&apps, `
+		select
+			a.*,
+			sp.name as service_profile_name
+		from application a
+		inner join service_profile sp
+			on sp.service_profile_id = a.service_profile_id
+		order by
+			name
+		limit $1
+		offset $2`,
+		limit,
+		offset,
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "select error")
 	}
@@ -193,22 +167,22 @@ func GetApplications(db *sqlx.DB, limit, offset int) ([]Application, error) {
 
 // GetApplicationsForUser returns a slice of application of which the given
 // user is a member of.
-func GetApplicationsForUser(db *sqlx.DB, username string, organizationID int64, limit, offset int) ([]Application, error) {
-	var apps []Application
+func GetApplicationsForUser(db *sqlx.DB, username string, organizationID int64, limit, offset int) ([]ApplicationListItem, error) {
+	var apps []ApplicationListItem
 	err := db.Select(&apps, `
-		select a.*
+		select
+			a.*,
+			sp.name as service_profile_name
 		from application a
-		left join application_user au
-			on a.id = au.application_id
-		left join organization_user ou
+		inner join service_profile sp
+			on sp.service_profile_id = a.service_profile_id
+		inner join organization_user ou
 			on a.organization_id = ou.organization_id
 		inner join "user" u
-			on au.user_id = u.id or ou.user_id = u.id
+			on u.id = ou.user_id
 		where
 			u.username = $1
 			and u.is_active = true
-			and (au.user_id is null or au.user_id = u.id)
-			and (ou.user_id is null or ou.user_id = u.id)
 			and (
 				$2 = 0
 				or a.organization_id = $2
@@ -225,14 +199,18 @@ func GetApplicationsForUser(db *sqlx.DB, username string, organizationID int64, 
 
 // GetApplicationsForOrganizationID returns a slice of applications for the given
 // organization.
-func GetApplicationsForOrganizationID(db *sqlx.DB, organizationID int64, limit, offset int) ([]Application, error) {
-	var apps []Application
+func GetApplicationsForOrganizationID(db *sqlx.DB, organizationID int64, limit, offset int) ([]ApplicationListItem, error) {
+	var apps []ApplicationListItem
 	err := db.Select(&apps, `
-		select *
-		from application
+		select
+			a.*,
+			sp.name as service_profile_name
+		from application a
+		inner join service_profile sp
+			on sp.service_profile_id = a.service_profile_id
 		where
-			organization_id = $1
-		order by name
+			a.organization_id = $1
+		order by a.name
 		limit $2 offset $3`,
 		organizationID,
 		limit,
@@ -246,9 +224,7 @@ func GetApplicationsForOrganizationID(db *sqlx.DB, organizationID int64, limit, 
 }
 
 // UpdateApplication updates the given Application.
-// When the application contains nodes with UseApplicationSettings=true, this
-// will also update these nodes.
-func UpdateApplication(db *sqlx.DB, item Application) error {
+func UpdateApplication(db sqlx.Execer, item Application) error {
 	if err := item.Validate(); err != nil {
 		return fmt.Errorf("validate application error: %s", err)
 	}
@@ -258,43 +234,23 @@ func UpdateApplication(db *sqlx.DB, item Application) error {
 		set
 			name = $2,
 			description = $3,
-			rx_delay = $4,
-			rx1_dr_offset = $5,
-			rx_window = $6,
-			rx2_dr = $7,
-			relax_fcnt = $8,
-			adr_interval = $9,
-			installation_margin = $10,
-			is_abp = $11,
-			is_class_c = $12,
-			organization_id = $13
+			organization_id = $4,
+			service_profile_id = $5,
+			payload_codec = $6,
+			payload_encoder_script = $7,
+			payload_decoder_script = $8
 		where id = $1`,
 		item.ID,
 		item.Name,
 		item.Description,
-		item.RXDelay,
-		item.RX1DROffset,
-		item.RXWindow,
-		item.RX2DR,
-		item.RelaxFCnt,
-		item.ADRInterval,
-		item.InstallationMargin,
-		item.IsABP,
-		item.IsClassC,
 		item.OrganizationID,
+		item.ServiceProfileID,
+		item.PayloadCodec,
+		item.PayloadEncoderScript,
+		item.PayloadDecoderScript,
 	)
 	if err != nil {
-		switch err := err.(type) {
-		case *pq.Error:
-			switch err.Code.Name() {
-			case "unique_violation":
-				return ErrAlreadyExists
-			default:
-				return errors.Wrap(err, "update error")
-			}
-		default:
-			return errors.Wrap(err, "update error")
-		}
+		return handlePSQLError(Update, err, "update error")
 	}
 	ra, err := res.RowsAffected()
 	if err != nil {
@@ -302,36 +258,6 @@ func UpdateApplication(db *sqlx.DB, item Application) error {
 	}
 	if ra == 0 {
 		return ErrDoesNotExist
-	}
-
-	// update node settings for nodes using the application settings
-	_, err = db.Exec(`
-		update node
-		set
-			rx_delay = $2,
-			rx1_dr_offset = $3,
-			rx_window = $4,
-			rx2_dr = $5,
-			relax_fcnt = $6,
-			adr_interval = $7,
-			installation_margin = $8,
-			is_abp = $9,
-			is_class_c = $10
-		where application_id = $1
-		and use_application_settings = true`,
-		item.ID,
-		item.RXDelay,
-		item.RX1DROffset,
-		item.RXWindow,
-		item.RX2DR,
-		item.RelaxFCnt,
-		item.ADRInterval,
-		item.InstallationMargin,
-		item.IsABP,
-		item.IsClassC,
-	)
-	if err != nil {
-		return fmt.Errorf("update nodes error: %s", err)
 	}
 
 	log.WithFields(log.Fields{
@@ -343,10 +269,15 @@ func UpdateApplication(db *sqlx.DB, item Application) error {
 }
 
 // DeleteApplication deletes the Application matching the given ID.
-func DeleteApplication(db *sqlx.DB, id int64) error {
+func DeleteApplication(db sqlx.Ext, id int64) error {
+	err := DeleteAllDevicesForApplicationID(db, id)
+	if err != nil {
+		return errors.Wrap(err, "delete all nodes error")
+	}
+
 	res, err := db.Exec("delete from application where id = $1", id)
 	if err != nil {
-		return errors.Wrap(err, "delete error")
+		return handlePSQLError(Delete, err, "delete error")
 	}
 	ra, err := res.RowsAffected()
 	if err != nil {
@@ -355,6 +286,7 @@ func DeleteApplication(db *sqlx.DB, id int64) error {
 	if ra == 0 {
 		return ErrDoesNotExist
 	}
+
 	log.WithFields(log.Fields{
 		"id": id,
 	}).Info("application deleted")
@@ -362,135 +294,21 @@ func DeleteApplication(db *sqlx.DB, id int64) error {
 	return nil
 }
 
-// GetApplicationUsers lists the users that have rights to the application,
-// given the offset into the list and the number of users to return.
-func GetApplicationUsers(db *sqlx.DB, applicationID int64, limit, offset int) ([]UserAccess, error) {
-	var users []UserAccess
-	err := db.Select(&users, `select au.user_id as user_id,
-	                                 au.is_admin as is_admin,
-	                                 au.created_at as created_at,
-	                                 au.updated_at as updated_at,
-	                                 u.username as username
-	                          from application_user au, "user" as u
-	                          where au.application_id = $1 and au.user_id = u.id
-	                          order by user_id limit $2 offset $3`,
-		applicationID, limit, offset)
+// DeleteAllApplicationsForOrganizationID deletes all applications
+// given an organization id.
+func DeleteAllApplicationsForOrganizationID(db sqlx.Ext, organizationID int64) error {
+	var apps []Application
+	err := sqlx.Select(db, &apps, "select * from application where organization_id = $1", organizationID)
 	if err != nil {
-		return nil, errors.Wrap(err, "select error")
+		return handlePSQLError(Select, err, "select error")
 	}
-	return users, nil
-}
 
-// GetApplicationUsers gets the number of users that have rights to the
-// application.
-func GetApplicationUsersCount(db *sqlx.DB, applicationID int64) (int32, error) {
-	var count int32
-	err := db.Get(&count, "select count(*) from application_user where application_id = $1", applicationID)
-	if err != nil {
-		return 0, errors.Wrap(err, "select error")
-	}
-	return count, nil
-}
-
-// GetUsersForApplication gets the information for the user that has rights to
-// the application.
-func GetUserForApplication(db *sqlx.DB, applicationID, userID int64) (*UserAccess, error) {
-	var user UserAccess
-	err := db.Get(&user, `select au.user_id as user_id,
-	                             au.is_admin as is_admin,
-	                             au.created_at as created_at,
-	                             au.updated_at as updated_at,
-	                             u.username as username
-	                          from application_user au, "user" as u
-	                          where au.application_id = $1 and au.user_id = $2 and au.user_id = u.id and user_id = $2`,
-		applicationID, userID)
-	if err != nil {
-		return nil, errors.Wrap(err, "select error")
-	}
-	return &user, nil
-}
-
-// CreateUserForApplication adds the user to the application with the given
-// access.
-func CreateUserForApplication(db sqlx.Execer, applicationID, userID int64, adminAccess bool) error {
-	_, err := db.Exec(`
-		insert into application_user (
-			application_id,
-			user_id,
-			is_admin,
-			created_at,
-			updated_at
-		) values ($1, $2, $3, now(), now())`,
-		applicationID,
-		userID,
-		adminAccess,
-	)
-
-	if err != nil {
-		switch err := err.(type) {
-		case *pq.Error:
-			switch err.Code.Name() {
-			case "unique_violation":
-				return ErrAlreadyExists
-			case "foreign_key_violation":
-				return ErrDoesNotExist
-			default:
-				return errors.Wrap(err, "insert error")
-			}
-		default:
-			return errors.Wrap(err, "insert error")
+	for _, app := range apps {
+		err = DeleteApplication(db, app.ID)
+		if err != nil {
+			return errors.Wrap(err, "delete application error")
 		}
 	}
 
-	log.WithFields(log.Fields{
-		"user_id":        userID,
-		"application_id": applicationID,
-		"admin":          adminAccess,
-	}).Info("user for application created")
-	return nil
-}
-
-// UpdateUserForApplication lets the caller update the admin setting for the
-// user for the application.
-func UpdateUserForApplication(db *sqlx.DB, applicationID, userID int64, adminAccess bool) error {
-	_, err := db.Exec("update application_user set is_admin = $1, updated_at = now() where application_id = $2 and user_id = $3",
-		adminAccess,
-		applicationID,
-		userID,
-	)
-	if err != nil {
-		return errors.Wrap(err, "update error")
-	}
-
-	log.WithFields(log.Fields{
-		"user_id":        userID,
-		"application_id": applicationID,
-		"admin":          adminAccess,
-	}).Info("user for application updated")
-	return nil
-}
-
-// DeleteUserForApplication lets the caller remove the user from the application.
-func DeleteUserForApplication(db *sqlx.DB, applicationID, userID int64) error {
-	res, err := db.Exec("delete from application_user where application_id = $1 and user_id = $2",
-		applicationID,
-		userID,
-	)
-	if err != nil {
-		return errors.Wrap(err, "delete error")
-	}
-
-	ra, err := res.RowsAffected()
-	if err != nil {
-		return errors.Wrap(err, "get rows affected error")
-	}
-	if ra == 0 {
-		return ErrDoesNotExist
-	}
-
-	log.WithFields(log.Fields{
-		"user_id":        userID,
-		"application_id": applicationID,
-	}).Info("user for application deleted")
 	return nil
 }

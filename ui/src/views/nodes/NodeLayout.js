@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import OrganizationSelect from "../../components/OrganizationSelect";
 import NodeStore from "../../stores/NodeStore";
 import ApplicationStore from "../../stores/ApplicationStore";
+import DeviceProfileStore from "../../stores/DeviceProfileStore";
 import SessionStore from "../../stores/SessionStore";
 
 class NodeLayout extends Component {
@@ -17,6 +18,9 @@ class NodeLayout extends Component {
     this.state = {
       application: {},
       node: {},
+      deviceProfile: {
+        deviceProfile: {},
+      },
       isAdmin: false,
     };
 
@@ -26,18 +30,25 @@ class NodeLayout extends Component {
   componentDidMount() {
     NodeStore.getNode(this.props.params.applicationID, this.props.params.devEUI, (node) => {
       this.setState({node: node});
+
+      DeviceProfileStore.getDeviceProfile(this.state.node.deviceProfileID, (deviceProfile) => {
+        this.setState({
+          deviceProfile: deviceProfile,
+        });
+      });
     });
+
     ApplicationStore.getApplication(this.props.params.applicationID, (application) => {
       this.setState({application: application});
     });
 
     this.setState({
-      isAdmin: (SessionStore.isAdmin() || SessionStore.isOrganizationAdmin(this.props.params.organizationID) || SessionStore.isApplicationAdmin(this.props.params.applicationID)),
+      isAdmin: (SessionStore.isAdmin() || SessionStore.isOrganizationAdmin(this.props.params.organizationID)),
     });
 
     SessionStore.on("change", () => {
       this.setState({
-        isAdmin: (SessionStore.isAdmin() || SessionStore.isOrganizationAdmin(this.props.params.organizationID) || SessionStore.isApplicationAdmin(this.props.params.applicationID)),
+        isAdmin: (SessionStore.isAdmin() || SessionStore.isOrganizationAdmin(this.props.params.organizationID)),
       });
     });
   }
@@ -68,12 +79,14 @@ class NodeLayout extends Component {
         </ol>
         <div className="clearfix">
           <div className="btn-group pull-right" role="group" aria-label="...">
-            <Link><button type="button" className={"btn btn-danger " + (this.state.isAdmin ? '' : 'hidden')} onClick={this.onDelete}>Delete node</button></Link>
+            <Link><button type="button" className={"btn btn-danger " + (this.state.isAdmin ? '' : 'hidden')} onClick={this.onDelete}>Delete device</button></Link>
           </div>
         </div>
         <ul className="nav nav-tabs">
-          <li role="presentation" className={activeTab === "edit" ? 'active' : ''}><Link to={`/organizations/${this.props.params.organizationID}/applications/${this.props.params.applicationID}/nodes/${this.props.params.devEUI}/edit`}>Node configuration</Link></li>
-          <li role="presentation" className={activeTab === "activation" ? 'active' : ''}><Link to={`/organizations/${this.props.params.organizationID}/applications/${this.props.params.applicationID}/nodes/${this.props.params.devEUI}/activation`}>Node activation</Link></li>
+          <li role="presentation" className={activeTab === "edit" ? 'active' : ''}><Link to={`/organizations/${this.props.params.organizationID}/applications/${this.props.params.applicationID}/nodes/${this.props.params.devEUI}/edit`}>Device configuration</Link></li>
+          <li role="presentation" className={(activeTab === "keys" ? 'active' : '') + (this.state.deviceProfile.deviceProfile.supportsJoin && this.state.isAdmin ? "" : "hidden")}><Link to={`/organizations/${this.props.params.organizationID}/applications/${this.props.params.applicationID}/nodes/${this.props.params.devEUI}/keys`}>Device keys (OTAA)</Link></li>
+          <li role="presentation" className={(activeTab === "activate" ? 'active' : '') + (!this.state.deviceProfile.deviceProfile.supportsJoin && this.state.isAdmin ? "": "hidden")}><Link to={`/organizations/${this.props.params.organizationID}/applications/${this.props.params.applicationID}/nodes/${this.props.params.devEUI}/activate`}>Activate device (ABP)</Link></li>
+          <li role="presentation" className={activeTab === "activation" ? 'active' : ''}><Link to={`/organizations/${this.props.params.organizationID}/applications/${this.props.params.applicationID}/nodes/${this.props.params.devEUI}/activation`}>Device activation</Link></li>
           <li role="presentation" className={activeTab === "frames" ? 'active' : ''}><Link to={`/organizations/${this.props.params.organizationID}/applications/${this.props.params.applicationID}/nodes/${this.props.params.devEUI}/frames`}>Raw frame logs</Link></li>
         </ul>
         <hr />
