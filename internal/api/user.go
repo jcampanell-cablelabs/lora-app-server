@@ -290,13 +290,3 @@ func (a *InternalUserAPI) Branding(ctx context.Context, req *pb.BrandingRequest)
 
 	return &resp, nil
 }
-
-func (a *InternalUserAPI) Branding(ctx context.Context, req *pb.BrandingRequest) (*pb.BrandingResponse, error) {
-	resp := pb.BrandingResponse {
-        Logo:         a.input.String( "branding-header" ),
-        Registration: a.input.String( "branding-registration" ),
-        Footer:       a.input.String( "branding-footer" ),
-    }
-
-	return &resp, nil
-}
